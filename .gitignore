@@ -61,6 +61,12 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# DeepInsight database files
+backend/data/deepinsight.db
+backend/data/deepinsight.db-journal
+*.db
+*.db-journal
+
 # Flask stuff:
 instance/
 .webassets-cache
