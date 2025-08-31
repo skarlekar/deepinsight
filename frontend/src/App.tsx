@@ -10,6 +10,9 @@ interface ApiTestResult {
 const App: React.FC = () => {
   const [testResults, setTestResults] = useState<ApiTestResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'register' | 'login' | 'upload'>('dashboard');
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [userForm, setUserForm] = useState({ username: '', email: '', password: '' });
 
   const testApiEndpoint = async (endpoint: string, method: string = 'GET', body?: any) => {
     try {
