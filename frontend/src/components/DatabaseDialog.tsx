@@ -15,7 +15,6 @@ import {
   CircularProgress,
   Card,
   CardContent,
-  Chip,
 } from '@mui/material';
 import { Download, Storage } from '@mui/icons-material';
 import apiService from '../services/api';
@@ -78,9 +77,15 @@ export const DatabaseDialog: React.FC<DatabaseDialogProps> = ({
     }
   };
 
-  const handleDownload = (filename: string) => {
-    const url = apiService.getDownloadUrl(filename);
-    window.open(url, '_blank');
+  const handleDownload = async (filename: string) => {
+    try {
+      await apiService.downloadFile(filename);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to the old method if the new one fails
+      const url = apiService.getDownloadUrl(filename);
+      window.open(url, '_blank');
+    }
   };
 
   const handleClose = () => {

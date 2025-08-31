@@ -185,6 +185,23 @@ class ApiService {
     return `${this.api.defaults.baseURL}/exports/download/${filename}`;
   }
 
+  async downloadFile(filename: string): Promise<void> {
+    const response = await this.api.get(`/exports/download/${filename}`, {
+      responseType: 'blob',
+    });
+    
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
   // Health check
   async healthCheck(): Promise<any> {
     const response = await this.api.get('/health');
