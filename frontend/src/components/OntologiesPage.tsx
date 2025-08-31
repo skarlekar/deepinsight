@@ -36,6 +36,7 @@ import {
 import { OntologyDialog } from './OntologyDialog';
 import apiService from '../services/api';
 import { Ontology, OntologyStatus } from '../types';
+import { formatDateToLocal } from '../utils/dateUtils';
 
 export const OntologiesPage: React.FC = () => {
   const [ontologies, setOntologies] = useState<Ontology[]>([]);
@@ -174,9 +175,7 @@ export const OntologiesPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // Using formatDateToLocalToLocal from utils instead of local function
 
   if (loading) {
     return (
@@ -265,12 +264,12 @@ export const OntologiesPage: React.FC = () => {
 
                   <Box sx={{ mb: 1 }}>
                     <Typography variant="caption" color="text.secondary">
-                      Created: {formatDate(ontology.created_at)}
+                      Created: {formatDateToLocal(ontology.created_at)}
                     </Typography>
                   </Box>
                   
                   <Typography variant="caption" color="text.secondary">
-                    Updated: {formatDate(ontology.updated_at)}
+                    Updated: {formatDateToLocal(ontology.updated_at)}
                   </Typography>
                 </CardContent>
 

@@ -36,6 +36,7 @@ class Settings(BaseSettings):
         "text/markdown"
     ]
     
+    
     class Config:
         env_file = ".env"
 

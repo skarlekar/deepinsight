@@ -30,6 +30,7 @@ import {
 import { UploadDialog } from './UploadDialog';
 import apiService from '../services/api';
 import { Document, DocumentStatus } from '../types';
+import { formatDateToLocal } from '../utils/dateUtils';
 
 export const DocumentsPage: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -99,9 +100,7 @@ export const DocumentsPage: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // Using formatDateToLocalToLocal from utils instead of local function
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -223,9 +222,9 @@ export const DocumentsPage: React.FC = () => {
                         size="small"
                       />
                     </TableCell>
-                    <TableCell>{formatDate(document.created_at)}</TableCell>
+                    <TableCell>{formatDateToLocal(document.created_at)}</TableCell>
                     <TableCell>
-                      {document.processed_at ? formatDate(document.processed_at) : '-'}
+                      {document.processed_at ? formatDateToLocal(document.processed_at) : '-'}
                     </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', gap: 1 }}>
@@ -337,12 +336,12 @@ export const DocumentsPage: React.FC = () => {
               />
               
               <Typography variant="subtitle2" gutterBottom>Uploaded:</Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>{formatDate(selectedDocument.created_at)}</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>{formatDateToLocal(selectedDocument.created_at)}</Typography>
               
               {selectedDocument.processed_at && (
                 <>
                   <Typography variant="subtitle2" gutterBottom>Processed:</Typography>
-                  <Typography variant="body1" sx={{ mb: 2 }}>{formatDate(selectedDocument.processed_at)}</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>{formatDateToLocal(selectedDocument.processed_at)}</Typography>
                 </>
               )}
               

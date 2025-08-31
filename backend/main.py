@@ -44,7 +44,7 @@ app.add_middleware(
 async def health_check():
     return {
         "status": "healthy",
-        "timestamp": datetime.now(),
+        "timestamp": datetime.utcnow(),
         "version": "1.0.0",
         "database": "connected",
         "claude_api": "available"

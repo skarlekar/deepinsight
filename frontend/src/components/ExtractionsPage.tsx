@@ -39,6 +39,7 @@ import { ExtractionProgressDialog } from './ExtractionProgressDialog';
 import { NetworkGraph } from './NetworkGraph';
 import apiService from '../services/api';
 import { Extraction, ExtractionStatus } from '../types';
+import { formatDateToLocal } from '../utils/dateUtils';
 
 export const ExtractionsPage: React.FC = () => {
   const [extractions, setExtractions] = useState<Extraction[]>([]);
@@ -175,9 +176,7 @@ export const ExtractionsPage: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // Using formatDateToLocalToLocal from utils instead of local function
 
   const getStatusIcon = (status: ExtractionStatus) => {
     switch (status) {
@@ -344,9 +343,9 @@ export const ExtractionsPage: React.FC = () => {
                         Ont ID: {extraction.ontology_id.slice(0, 8)}...
                       </Typography>
                     </TableCell>
-                    <TableCell>{formatDate(extraction.created_at)}</TableCell>
+                    <TableCell>{formatDateToLocal(extraction.created_at)}</TableCell>
                     <TableCell>
-                      {extraction.completed_at ? formatDate(extraction.completed_at) : '-'}
+                      {extraction.completed_at ? formatDateToLocal(extraction.completed_at) : '-'}
                     </TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', gap: 1 }}>

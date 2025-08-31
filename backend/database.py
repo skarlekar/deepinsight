@@ -27,8 +27,8 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
+    updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
     
     # Relationships
     documents = relationship("Document", back_populates="user")
@@ -46,7 +46,7 @@ class Document(Base):
     file_size = Column(Integer, nullable=False)
     mime_type = Column(String(100), nullable=False)
     status = Column(String(20), nullable=False, default="uploaded")
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
     processed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
     content_text = Column(Text, nullable=True)
@@ -68,8 +68,8 @@ class Ontology(Base):
     version = Column(Integer, nullable=False, default=1)
     status = Column(String(20), nullable=False, default="draft")
     triples = Column(JSON, nullable=False, default=list)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
+    updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
     
     # Relationships
     user = relationship("User", back_populates="ontologies")
@@ -87,7 +87,7 @@ class Extraction(Base):
     nodes = Column(JSON, nullable=True)
     relationships = Column(JSON, nullable=True)
     extraction_metadata = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
     
@@ -102,7 +102,7 @@ class SessionToken(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     token_hash = Column(String(255), nullable=False, unique=True)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
     expires_at = Column(DateTime, nullable=False)
     revoked_at = Column(DateTime, nullable=True)
     

@@ -262,7 +262,8 @@ class OntologyCreationAgent:
 class DataExtractionAgent:
     """Agent for extracting structured data using ontology"""
     
-    DATA_EXTRACTION_PROMPT = """
+
+    DATA_EXTRACTION_PROMPT_ENHANCED = """
     Extract structured data from the following text chunk using the provided ontology.
 
     Text Chunk:
@@ -274,20 +275,37 @@ class DataExtractionAgent:
     Instructions:
     1. Find instances of the entities defined in the ontology within the text
     2. Extract relationships between these entities as specified in the ontology
-    3. Assign unique IDs to each extracted entity instance
+    3. Assign unique IDs to each extracted entity instance (use simple sequential IDs like "person_1", "airport_1")
     4. Include source location information (character positions)
+    5. **MANDATORY: Every node MUST have a 'name' property for entity deduplication**
+       - For Airport entities: name must be the airport code (e.g., "IST", "BOM", "IAD")
+       - For Person entities: name must be the full person name (e.g., "John Smith")
+       - For Organization/Company entities: name must be the organization name
+       - For Hotel entities: name must be the hotel name
+       - For Location entities: name must be the location/address
+       - The name property will be used to deduplicate identical entities across document chunks
 
-    Return JSON in this format:
+    Return JSON with GUARANTEED name property for every node:
     {{
         "nodes": [
             {{
-                "id": "person_1",
+                "id": "airport_1",
+                "type": "Airport",
+                "properties": {{
+                    "name": "IST",
+                    "code": "IST",
+                    "extracted_text": "IST"
+                }},
+                "source_location": "char_100_103"
+            }},
+            {{
+                "id": "person_1", 
                 "type": "Person",
                 "properties": {{
                     "name": "John Smith",
                     "extracted_text": "John Smith"
                 }},
-                "source_location": "char_100_110"
+                "source_location": "char_200_210"
             }}
         ],
         "relationships": [
@@ -302,17 +320,21 @@ class DataExtractionAgent:
         ]
     }}
 
+    CRITICAL: Every entity node must have a 'name' property - this is mandatory for deduplication.
     Only extract entities and relationships that are explicitly mentioned or clearly implied in the text.
     """
 
     def extract_from_chunk(self, state: DataExtractionState) -> DataExtractionState:
         """Extract data from a single text chunk"""
         try:
-            prompt = self.DATA_EXTRACTION_PROMPT.format(
+            # Use enhanced prompt with mandatory name property requirements
+            prompt = self.DATA_EXTRACTION_PROMPT_ENHANCED.format(
                 text_chunk=state["document_text"],
                 ontology_triples=json.dumps(state["ontology_triples"], indent=2)
             )
             
+            from config import get_settings
+            settings = get_settings()
             client = Anthropic(api_key=settings.anthropic_api_key)
             
             def make_api_call():

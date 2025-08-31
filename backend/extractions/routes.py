@@ -133,8 +133,11 @@ def process_data_extraction(
         db.commit()
         print(f"[EXTRACTION] DEBUG: After commit - metadata keys: {list(extraction.extraction_metadata.keys())}")
         
-        all_nodes = []
-        all_relationships = []
+        # Initialize enhanced extraction processor
+        from utils.enhanced_extraction import EnhancedExtractionProcessor
+        enhanced_processor = EnhancedExtractionProcessor()
+        all_extracted_relationships = []  # Store for final resolution
+        print(f"[EXTRACTION] Using enhanced extraction pipeline with GUID-based deduplication")
         
         # Process each chunk
         for i, chunk in enumerate(chunks):
@@ -169,28 +172,36 @@ def process_data_extraction(
                 print(f"[EXTRACTION] Chunk {i+1} result: {result['status']}")
                 
                 if result["status"] == "extraction_completed":
-                    # Add chunk-specific ID prefixes to avoid conflicts
-                    chunk_nodes = []
-                    chunk_relationships = []
+                    # Enhanced extraction: Use EntityRegistry and RelationshipResolver
+                    from utils.enhanced_extraction import validate_name_properties
                     
-                    for node in result["extracted_nodes"]:
-                        node["id"] = f"chunk_{i}_{node['id']}"
-                        all_nodes.append(node)
-                        chunk_nodes.append(node)
+                    # Validate name properties first
+                    validation_errors = validate_name_properties(result["extracted_nodes"])
+                    if validation_errors:
+                        print(f"[EXTRACTION] Validation errors in chunk {i+1}: {validation_errors}")
+                        # Continue processing but log errors
                     
-                    for rel in result["extracted_relationships"]:
-                        rel["id"] = f"chunk_{i}_{rel['id']}"
-                        rel["source_id"] = f"chunk_{i}_{rel['source_id']}"
-                        rel["target_id"] = f"chunk_{i}_{rel['target_id']}"
-                        all_relationships.append(rel)
-                        chunk_relationships.append(rel)
+                    # Process chunk with enhanced processor
+                    chunk_relationships = enhanced_processor.process_chunk_results(i, {
+                        "nodes": result["extracted_nodes"],
+                        "relationships": result["extracted_relationships"]
+                    })
+                    
+                    # Store relationships for final resolution
+                    all_extracted_relationships.extend(chunk_relationships)
+                    
+                    # Get current entity count for progress tracking
+                    chunk_nodes_count = enhanced_processor.entity_registry.get_entity_count()
+                    chunk_relationships_count = len(chunk_relationships)
+                    
+                    print(f"[EXTRACTION] Enhanced processing chunk {i+1}: {chunk_nodes_count} total entities, {chunk_relationships_count} relationships")
                     
                     # Update chunk progress - must reassign for JSON fields
                     metadata = extraction.extraction_metadata.copy()
                     metadata["chunk_progress"][i] = {
                         "status": "completed",
-                        "nodes_count": len(chunk_nodes),
-                        "relationships_count": len(chunk_relationships)
+                        "nodes_count": chunk_nodes_count,
+                        "relationships_count": chunk_relationships_count
                     }
                     metadata["processed_chunks"] = i + 1
                     extraction.extraction_metadata = metadata
@@ -213,28 +224,33 @@ def process_data_extraction(
                     db.commit()
                 continue
         
-        # Deduplicate nodes and relationships (simplified)
-        unique_nodes = {}
-        for node in all_nodes:
-            # Use node properties to create a key for deduplication
-            node_key = f"{node['type']}:{node.get('properties', {}).get('name', node['id'])}"
-            if node_key not in unique_nodes:
-                unique_nodes[node_key] = node
+        # Finalize enhanced extraction
+        print(f"[EXTRACTION] Finalizing enhanced extraction...")
+        final_results = enhanced_processor.finalize_extraction(all_extracted_relationships)
         
-        final_nodes = list(unique_nodes.values())
+        final_nodes = final_results["nodes"]
+        final_relationships = final_results["relationships"]
+        enhanced_metadata = final_results["metadata"]
         
-        # Update extraction with results
+        print(f"[EXTRACTION] Enhanced extraction complete: {len(final_nodes)} unique entities, {len(final_relationships)} resolved relationships")
+        print(f"[EXTRACTION] Deduplication stats: {enhanced_metadata['entity_stats']}")
+        
+        # Update extraction with enhanced results
         extraction.nodes = final_nodes
-        extraction.relationships = all_relationships
-        extraction.status = "completed"
-        extraction.completed_at = datetime.utcnow()
+        extraction.relationships = final_relationships
         
-        # Update metadata with counts
+        # Enhanced metadata
         extraction.extraction_metadata.update({
             "nodes_count": len(final_nodes),
-            "relationships_count": len(all_relationships),
-            "chunks_processed": len(chunks)
+            "relationships_count": len(final_relationships),
+            "chunks_processed": len(chunks),
+            "extraction_mode": "enhanced",
+            "entity_stats": enhanced_metadata["entity_stats"],
+            "relationship_stats": enhanced_metadata["relationship_stats"]
         })
+        
+        extraction.status = "completed"
+        extraction.completed_at = datetime.utcnow()
         
         db.commit()
         
