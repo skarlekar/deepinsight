@@ -58,14 +58,21 @@ async def get_current_user(
         raise credentials_exception
     
     # Check if token exists and is not revoked
-    token_hash = get_password_hash(token)
-    session_token = db.query(SessionToken).filter(
-        SessionToken.token_hash == token_hash,
+    # Find all non-revoked tokens for the user and verify the token hash
+    session_tokens = db.query(SessionToken).filter(
+        SessionToken.user_id == user_id,
         SessionToken.revoked_at.is_(None),
         SessionToken.expires_at > datetime.utcnow()
-    ).first()
+    ).all()
     
-    if not session_token:
+    # Verify token hash matches any of the stored hashes
+    valid_token = False
+    for session_token in session_tokens:
+        if pwd_context.verify(token, session_token.token_hash):
+            valid_token = True
+            break
+    
+    if not valid_token:
         raise credentials_exception
     
     user = db.query(User).filter(User.id == user_id).first()

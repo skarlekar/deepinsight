@@ -13,7 +13,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+      baseURL: process.env.REACT_APP_API_URL || '/api',
       timeout: 30000,
     });
 
@@ -21,9 +21,6 @@ class ApiService {
     this.api.interceptors.request.use((config) => {
       if (this.token) {
         config.headers.Authorization = `Bearer ${this.token}`;
-        console.log('API Request with token to:', config.url);
-      } else {
-        console.log('API Request without token to:', config.url);
       }
       return config;
     });
@@ -34,7 +31,7 @@ class ApiService {
       (error: AxiosError) => {
         if (error.response?.status === 401) {
           this.clearToken();
-          // Don't redirect here - let the AuthContext handle this
+          window.location.href = '/login';
         }
         throw error;
       }
@@ -54,7 +51,6 @@ class ApiService {
   setToken(token: string) {
     this.token = token;
     localStorage.setItem('access_token', token);
-    console.log('Token set:', token ? 'Token stored' : 'No token');
   }
 
   clearToken() {
@@ -117,15 +113,6 @@ class ApiService {
     await this.api.delete(`/documents/${id}`);
   }
 
-  async getDocumentStatus(id: string): Promise<any> {
-    const response = await this.api.get(`/documents/${id}/status`);
-    return response.data;
-  }
-
-  getDocumentDownloadUrl(id: string): string {
-    return `${this.api.defaults.baseURL}/documents/${id}/download`;
-  }
-
   // Ontology endpoints
   async createOntology(data: { document_id: string; name: string; description?: string }): Promise<Ontology> {
     const response = await this.api.post<Ontology>('/ontologies', data);
@@ -151,11 +138,6 @@ class ApiService {
 
   async deleteOntology(id: string): Promise<void> {
     await this.api.delete(`/ontologies/${id}`);
-  }
-
-  async reprocessOntology(id: string): Promise<any> {
-    const response = await this.api.post(`/ontologies/${id}/reprocess`);
-    return response.data;
   }
 
   // Extraction endpoints
@@ -186,28 +168,6 @@ class ApiService {
 
   async deleteExtraction(id: string): Promise<void> {
     await this.api.delete(`/extractions/${id}`);
-  }
-
-  async getExtractionStatus(id: string): Promise<any> {
-    const response = await this.api.get(`/extractions/${id}/status`);
-    return response.data;
-  }
-
-  async getExtractionProgress(id: string): Promise<any> {
-    const response = await this.api.get(`/extractions/${id}/progress`);
-    return response.data;
-  }
-
-  async downloadExtractionResults(id: string): Promise<Blob> {
-    const response = await this.api.get(`/extractions/${id}/result`, {
-      responseType: 'blob',
-    });
-    return response.data;
-  }
-
-  async restartExtraction(id: string): Promise<any> {
-    const response = await this.api.post(`/extractions/${id}/restart`);
-    return response.data;
   }
 
   // Export endpoints

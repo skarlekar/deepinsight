@@ -1,13 +1,34 @@
 from typing import Dict, Any, List, TypedDict
 import json
+import time
+import asyncio
 from anthropic import Anthropic
 from config import get_settings
 import logging
 
 settings = get_settings()
-client = Anthropic(api_key=settings.anthropic_api_key)
 
 logger = logging.getLogger(__name__)
+
+def retry_anthropic_call(func, max_retries=3, base_delay=1):
+    """Retry Anthropic API calls with exponential backoff"""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            error_str = str(e)
+            if "overloaded" in error_str.lower() or "429" in error_str or "529" in error_str:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    print(f"[RETRY] API overloaded, waiting {delay}s before retry {attempt + 1}/{max_retries}")
+                    time.sleep(delay)
+                    continue
+                else:
+                    print(f"[RETRY] Max retries reached, failing with: {error_str}")
+                    raise
+            else:
+                # Non-retryable error, fail immediately
+                raise
 
 # State definitions for LangGraph-like processing
 class OntologyCreationState(TypedDict):
@@ -49,16 +70,16 @@ class OntologyCreationAgent:
 
     Return a JSON array of entities in this format:
     [
-        {
+        {{
             "entity_type": "Person",
             "type_variations": ["Individual", "Employee", "Researcher"],
             "primitive_type": "string"
-        },
-        {
+        }},
+        {{
             "entity_type": "Organization", 
             "type_variations": ["Company", "Institution", "Corporation"],
             "primitive_type": "string"
-        }
+        }}
     ]
 
     Focus on quality over quantity - extract 5-15 meaningful entity types.
@@ -77,22 +98,22 @@ class OntologyCreationAgent:
 
     Return a JSON array of ontology triples in this format:
     [
-        {
-            "subject": {
+        {{
+            "subject": {{
                 "entity_type": "Person",
                 "type_variations": ["Individual", "Employee"],
                 "primitive_type": "string"
-            },
-            "relationship": {
+            }},
+            "relationship": {{
                 "relationship_type": "works_for",
                 "type_variations": ["is_employed_by", "employed_at"]
-            },
-            "object": {
+            }},
+            "object": {{
                 "entity_type": "Organization",
                 "type_variations": ["Company", "Employer"],
                 "primitive_type": "string"
-            }
-        }
+            }}
+        }}
     ]
 
     Create 3-10 meaningful relationship triples that capture the key relationships in the document.
@@ -105,15 +126,44 @@ class OntologyCreationAgent:
                 document_text=state["document_text"][:8000]  # Limit for token constraints
             )
             
+            client = Anthropic(api_key=settings.anthropic_api_key)
             response = client.messages.create(
                 model=settings.llm_model,
                 max_tokens=settings.llm_max_tokens,
                 temperature=settings.llm_temperature,
                 messages=[{"role": "user", "content": prompt}]
             )
-            
             # Parse JSON response
-            entities_text = response.content[0].text
+            entities_text = response.content[0].text.strip()
+            
+            # Extract JSON from response if it's wrapped in markdown or other text
+            if "```json" in entities_text:
+                json_start = entities_text.find("```json") + 7
+                json_end = entities_text.find("```", json_start)
+                entities_text = entities_text[json_start:json_end].strip()
+            elif "```" in entities_text:
+                json_start = entities_text.find("```") + 3
+                json_end = entities_text.find("```", json_start)
+                entities_text = entities_text[json_start:json_end].strip()
+            else:
+                # Find JSON array in the text - look for the first complete JSON array
+                json_start = entities_text.find("[")
+                if json_start != -1:
+                    # Find the matching closing bracket by counting brackets
+                    bracket_count = 0
+                    json_end = json_start
+                    for i, char in enumerate(entities_text[json_start:]):
+                        if char == '[':
+                            bracket_count += 1
+                        elif char == ']':
+                            bracket_count -= 1
+                            if bracket_count == 0:
+                                json_end = json_start + i + 1
+                                break
+                    
+                    if json_end > json_start:
+                        entities_text = entities_text[json_start:json_end]
+            
             entities = json.loads(entities_text)
             
             state["extracted_entities"] = entities
@@ -134,6 +184,7 @@ class OntologyCreationAgent:
                 document_text=state["document_text"][:4000]  # Smaller context for this step
             )
             
+            client = Anthropic(api_key=settings.anthropic_api_key)
             response = client.messages.create(
                 model=settings.llm_model,
                 max_tokens=settings.llm_max_tokens,
@@ -142,7 +193,36 @@ class OntologyCreationAgent:
             )
             
             # Parse JSON response
-            triples_text = response.content[0].text
+            triples_text = response.content[0].text.strip()
+            
+            # Extract JSON from response if it's wrapped in markdown or other text
+            if "```json" in triples_text:
+                json_start = triples_text.find("```json") + 7
+                json_end = triples_text.find("```", json_start)
+                triples_text = triples_text[json_start:json_end].strip()
+            elif "```" in triples_text:
+                json_start = triples_text.find("```") + 3
+                json_end = triples_text.find("```", json_start)
+                triples_text = triples_text[json_start:json_end].strip()
+            else:
+                # Find JSON array in the text - look for the first complete JSON array
+                json_start = triples_text.find("[")
+                if json_start != -1:
+                    # Find the matching closing bracket by counting brackets
+                    bracket_count = 0
+                    json_end = json_start
+                    for i, char in enumerate(triples_text[json_start:]):
+                        if char == '[':
+                            bracket_count += 1
+                        elif char == ']':
+                            bracket_count -= 1
+                            if bracket_count == 0:
+                                json_end = json_start + i + 1
+                                break
+                    
+                    if json_end > json_start:
+                        triples_text = triples_text[json_start:json_end]
+            
             triples = json.loads(triples_text)
             
             state["ontology_triples"] = triples
@@ -198,29 +278,29 @@ class DataExtractionAgent:
     4. Include source location information (character positions)
 
     Return JSON in this format:
-    {
+    {{
         "nodes": [
-            {
+            {{
                 "id": "person_1",
                 "type": "Person",
-                "properties": {
+                "properties": {{
                     "name": "John Smith",
                     "extracted_text": "John Smith"
-                },
+                }},
                 "source_location": "char_100_110"
-            }
+            }}
         ],
         "relationships": [
-            {
+            {{
                 "id": "rel_1",
                 "type": "works_for",
                 "source_id": "person_1",
                 "target_id": "org_1",
-                "properties": {},
+                "properties": {{}},
                 "source_location": "char_100_150"
-            }
+            }}
         ]
-    }
+    }}
 
     Only extract entities and relationships that are explicitly mentioned or clearly implied in the text.
     """
@@ -233,15 +313,37 @@ class DataExtractionAgent:
                 ontology_triples=json.dumps(state["ontology_triples"], indent=2)
             )
             
-            response = client.messages.create(
-                model=settings.llm_model,
-                max_tokens=settings.llm_max_tokens,
-                temperature=settings.llm_temperature,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            client = Anthropic(api_key=settings.anthropic_api_key)
+            
+            def make_api_call():
+                return client.messages.create(
+                    model=settings.llm_model,
+                    max_tokens=settings.llm_max_tokens,
+                    temperature=settings.llm_temperature,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+            
+            response = retry_anthropic_call(make_api_call, max_retries=3, base_delay=2)
             
             # Parse JSON response
-            extraction_text = response.content[0].text
+            extraction_text = response.content[0].text.strip()
+            
+            # Extract JSON from response if it's wrapped in markdown or other text
+            if "```json" in extraction_text:
+                json_start = extraction_text.find("```json") + 7
+                json_end = extraction_text.find("```", json_start)
+                extraction_text = extraction_text[json_start:json_end].strip()
+            elif "```" in extraction_text:
+                json_start = extraction_text.find("```") + 3
+                json_end = extraction_text.find("```", json_start)
+                extraction_text = extraction_text[json_start:json_end].strip()
+            
+            # Find JSON object in the text
+            json_start = extraction_text.find("{")
+            json_end = extraction_text.rfind("}") + 1
+            if json_start != -1 and json_end != 0:
+                extraction_text = extraction_text[json_start:json_end]
+            
             extraction_result = json.loads(extraction_text)
             
             state["extracted_nodes"] = extraction_result.get("nodes", [])

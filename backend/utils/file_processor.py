@@ -180,11 +180,18 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap_percentage: int = 10) 
             "size": len(chunk_text)
         })
         
-        # Move start position with overlap
-        start = end - overlap_size
-        if start >= end:  # Prevent infinite loop
+        # If we've reached the end of text, break
+        if end >= len(text):
             break
             
+        # Move start position with overlap
+        next_start = end - overlap_size
+        
+        # Ensure we make progress (avoid infinite loop)
+        if next_start <= start:
+            next_start = start + max(1, chunk_size - overlap_size)
+            
+        start = next_start
         chunk_id += 1
     
     return chunks

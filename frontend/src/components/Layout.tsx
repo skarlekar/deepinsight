@@ -3,6 +3,11 @@ import { Box, CssBaseline } from '@mui/material';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Sidebar } from './Sidebar';
 import { Dashboard } from './Dashboard';
+import { DocumentsPage } from './DocumentsPage';
+import { OntologiesPage } from './OntologiesPage';
+import { ExtractionsPage } from './ExtractionsPage';
+import { DatabasesPage } from './DatabasesPage';
+import { SettingsPage } from './SettingsPage';
 
 const theme = createTheme({
   palette: {
@@ -34,40 +39,15 @@ export const Layout: React.FC = () => {
       case 'dashboard':
         return <Dashboard />;
       case 'documents':
-        return (
-          <Box sx={{ p: 3 }}>
-            <h1>Documents</h1>
-            <p>Document management coming soon...</p>
-          </Box>
-        );
+        return <DocumentsPage />;
       case 'ontologies':
-        return (
-          <Box sx={{ p: 3 }}>
-            <h1>Ontologies</h1>
-            <p>Ontology management coming soon...</p>
-          </Box>
-        );
+        return <OntologiesPage />;
       case 'extractions':
-        return (
-          <Box sx={{ p: 3 }}>
-            <h1>Extractions</h1>
-            <p>Extraction management coming soon...</p>
-          </Box>
-        );
+        return <ExtractionsPage />;
       case 'databases':
-        return (
-          <Box sx={{ p: 3 }}>
-            <h1>Databases</h1>
-            <p>Database configuration coming soon...</p>
-          </Box>
-        );
+        return <DatabasesPage />;
       case 'settings':
-        return (
-          <Box sx={{ p: 3 }}>
-            <h1>Settings</h1>
-            <p>User settings coming soon...</p>
-          </Box>
-        );
+        return <SettingsPage />;
       default:
         return <Dashboard />;
     }

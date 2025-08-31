@@ -27,6 +27,10 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
 import { Document, Ontology, Extraction } from '../types';
+import { UploadDialog } from './UploadDialog';
+import { OntologyDialog } from './OntologyDialog';
+import { ExtractionDialog } from './ExtractionDialog';
+import { DatabaseDialog } from './DatabaseDialog';
 
 interface DashboardStats {
   documents: number;
@@ -52,6 +56,12 @@ export const Dashboard: React.FC = () => {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Dialog states
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [ontologyDialogOpen, setOntologyDialogOpen] = useState(false);
+  const [extractionDialogOpen, setExtractionDialogOpen] = useState(false);
+  const [databaseDialogOpen, setDatabaseDialogOpen] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -223,6 +233,7 @@ export const Dashboard: React.FC = () => {
                   fullWidth
                   variant="contained"
                   startIcon={<Upload />}
+                  onClick={() => setUploadDialogOpen(true)}
                   sx={{ py: 2, flexDirection: 'column', height: '100px' }}
                 >
                   Upload Document
@@ -233,6 +244,7 @@ export const Dashboard: React.FC = () => {
                   fullWidth
                   variant="outlined"
                   startIcon={<Schema />}
+                  onClick={() => setOntologyDialogOpen(true)}
                   sx={{ py: 2, flexDirection: 'column', height: '100px' }}
                 >
                   Create Ontology
@@ -243,6 +255,7 @@ export const Dashboard: React.FC = () => {
                   fullWidth
                   variant="outlined"
                   startIcon={<PlayArrow />}
+                  onClick={() => setExtractionDialogOpen(true)}
                   sx={{ py: 2, flexDirection: 'column', height: '100px' }}
                 >
                   Start Extraction
@@ -253,6 +266,7 @@ export const Dashboard: React.FC = () => {
                   fullWidth
                   variant="outlined"
                   startIcon={<Settings />}
+                  onClick={() => setDatabaseDialogOpen(true)}
                   sx={{ py: 2, flexDirection: 'column', height: '100px' }}
                 >
                   Configure Database
@@ -333,6 +347,31 @@ export const Dashboard: React.FC = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Dialog Components */}
+      <UploadDialog
+        open={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+        onUploadComplete={loadDashboardData}
+      />
+      
+      <OntologyDialog
+        open={ontologyDialogOpen}
+        onClose={() => setOntologyDialogOpen(false)}
+        onOntologyCreated={loadDashboardData}
+      />
+      
+      <ExtractionDialog
+        open={extractionDialogOpen}
+        onClose={() => setExtractionDialogOpen(false)}
+        onExtractionStarted={loadDashboardData}
+      />
+      
+      <DatabaseDialog
+        open={databaseDialogOpen}
+        onClose={() => setDatabaseDialogOpen(false)}
+        onExportComplete={loadDashboardData}
+      />
     </Box>
   );
 };

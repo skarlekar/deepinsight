@@ -110,28 +110,13 @@ def process_data_extraction(
         print(f"[EXTRACTION] Updated status to processing for {extraction_id}")
         
         # Chunk the document text
-        print(f"[EXTRACTION] Document text length: {len(document_text)} characters")
-        print(f"[EXTRACTION] Document text preview: {document_text[:200]}...")
-        
         chunks = chunk_text(document_text, chunk_size, overlap_percentage)
         print(f"[EXTRACTION] Created {len(chunks)} chunks for processing")
         
-        if len(chunks) == 0:
-            extraction.status = "error"
-            extraction.extraction_metadata = extraction.extraction_metadata or {}
-            extraction.extraction_metadata["error_message"] = "No chunks created - document text may be empty"
-            db.commit()
-            return
-        
-        # Update total chunks count - must reassign the entire dict for JSON fields
-        metadata = extraction.extraction_metadata.copy()
-        metadata["total_chunks"] = len(chunks)
-        metadata["chunk_progress"] = [{"status": "pending", "nodes_count": 0, "relationships_count": 0} for _ in range(len(chunks))]
-        extraction.extraction_metadata = metadata
-        print(f"[EXTRACTION] DEBUG: chunk_progress initialized with {len(chunks)} chunks")
-        print(f"[EXTRACTION] DEBUG: metadata keys: {list(extraction.extraction_metadata.keys())}")
+        # Update total chunks count
+        extraction.extraction_metadata["total_chunks"] = len(chunks)
+        extraction.extraction_metadata["chunk_progress"] = [{"status": "pending", "nodes_count": 0, "relationships_count": 0} for _ in range(len(chunks))]
         db.commit()
-        print(f"[EXTRACTION] DEBUG: After commit - metadata keys: {list(extraction.extraction_metadata.keys())}")
         
         all_nodes = []
         all_relationships = []
@@ -139,26 +124,12 @@ def process_data_extraction(
         # Process each chunk
         for i, chunk in enumerate(chunks):
             try:
-                print(f"[EXTRACTION] DEBUG: Processing chunk {i+1}, metadata keys: {list(extraction.extraction_metadata.keys())}")
-                print(f"[EXTRACTION] DEBUG: chunk_progress exists: {'chunk_progress' in extraction.extraction_metadata}")
-                if "chunk_progress" in extraction.extraction_metadata:
-                    print(f"[EXTRACTION] DEBUG: chunk_progress length: {len(extraction.extraction_metadata['chunk_progress'])}")
-                
-                # Update current chunk being processed - must reassign for JSON fields
-                metadata = extraction.extraction_metadata.copy()
-                metadata["current_chunk"] = i + 1
-                metadata["chunk_progress"][i]["status"] = "processing"
-                extraction.extraction_metadata = metadata
+                # Update current chunk being processed
+                extraction.extraction_metadata["current_chunk"] = i + 1
+                extraction.extraction_metadata["chunk_progress"][i]["status"] = "processing"
                 db.commit()
                 
                 print(f"[EXTRACTION] Processing chunk {i+1}/{len(chunks)} for extraction {extraction_id}")
-                print(f"[EXTRACTION] Chunk {i+1} text length: {len(chunk['text'])}")
-                
-                # Check if we have Anthropic API key
-                import os
-                api_key = os.getenv("ANTHROPIC_API_KEY")
-                print(f"[EXTRACTION] API key configured: {'Yes' if api_key else 'No'}")
-                
                 # Extract data from chunk using AI agent
                 result = extract_data_with_ontology(
                     chunk["text"],
@@ -185,32 +156,24 @@ def process_data_extraction(
                         all_relationships.append(rel)
                         chunk_relationships.append(rel)
                     
-                    # Update chunk progress - must reassign for JSON fields
-                    metadata = extraction.extraction_metadata.copy()
-                    metadata["chunk_progress"][i] = {
+                    # Update chunk progress
+                    extraction.extraction_metadata["chunk_progress"][i] = {
                         "status": "completed",
                         "nodes_count": len(chunk_nodes),
                         "relationships_count": len(chunk_relationships)
                     }
-                    metadata["processed_chunks"] = i + 1
-                    extraction.extraction_metadata = metadata
                 else:
-                    # Update chunk progress - must reassign for JSON fields
-                    metadata = extraction.extraction_metadata.copy()
-                    metadata["chunk_progress"][i]["status"] = "error"
-                    metadata["processed_chunks"] = i + 1
-                    extraction.extraction_metadata = metadata
+                    extraction.extraction_metadata["chunk_progress"][i]["status"] = "error"
+                
+                # Update processed chunks count
+                extraction.extraction_metadata["processed_chunks"] = i + 1
                 db.commit()
                 
             except Exception as e:
                 print(f"[EXTRACTION] Error processing chunk {i+1}: {str(e)}")
-                if extraction.extraction_metadata and "chunk_progress" in extraction.extraction_metadata and i < len(extraction.extraction_metadata["chunk_progress"]):
-                    # Update chunk progress - must reassign for JSON fields
-                    metadata = extraction.extraction_metadata.copy()
-                    metadata["chunk_progress"][i]["status"] = "error"
-                    metadata["processed_chunks"] = i + 1
-                    extraction.extraction_metadata = metadata
-                    db.commit()
+                extraction.extraction_metadata["chunk_progress"][i]["status"] = "error"
+                extraction.extraction_metadata["processed_chunks"] = i + 1
+                db.commit()
                 continue
         
         # Deduplicate nodes and relationships (simplified)
@@ -472,13 +435,3 @@ async def delete_extraction(
     db.commit()
     
     return {"message": "Extraction deleted successfully"}
-
-@router.get("/debug-test")
-async def debug_test_extraction():
-    """Simple debug test without auth"""
-    import os
-    return {
-        "status": "success",
-        "message": "Debug endpoint working",
-        "api_key_configured": bool(os.getenv("ANTHROPIC_API_KEY"))
-    }

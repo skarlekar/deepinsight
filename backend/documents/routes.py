@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
 import shutil
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from database import get_db, User, Document
 from models.documents import DocumentResponse, DocumentListResponse, DocumentStatusResponse, DocumentStatus
@@ -212,3 +214,35 @@ async def delete_document(
     db.commit()
     
     return {"message": "Document deleted successfully"}
+
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download original document file"""
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+    
+    file_path = Path(settings.upload_directory) / document.filename
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document file not found on server"
+        )
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=document.original_filename,
+        media_type=document.mime_type
+    )

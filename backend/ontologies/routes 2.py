@@ -170,51 +170,6 @@ async def update_ontology(
     
     return OntologyResponse.model_validate(ontology)
 
-@router.post("/{ontology_id}/reprocess")
-async def reprocess_ontology(
-    ontology_id: str,
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    ontology = db.query(Ontology).filter(
-        Ontology.id == ontology_id,
-        Ontology.user_id == current_user.id
-    ).first()
-    
-    if not ontology:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Ontology not found"
-        )
-    
-    # Get the associated document
-    document = db.query(Document).filter(
-        Document.id == ontology.document_id,
-        Document.user_id == current_user.id
-    ).first()
-    
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Associated document not found"
-        )
-    
-    # Reset status to processing
-    ontology.status = "processing"
-    db.commit()
-    
-    # Process ontology creation in background
-    background_tasks.add_task(
-        process_ontology_creation,
-        ontology.id,
-        document.content_text,
-        current_user.id,
-        db
-    )
-    
-    return {"message": "Ontology reprocessing started"}
-
 @router.delete("/{ontology_id}")
 async def delete_ontology(
     ontology_id: str,
