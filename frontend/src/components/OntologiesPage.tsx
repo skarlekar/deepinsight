@@ -31,6 +31,7 @@ import {
   Schema,
   Replay,
   ExpandMore,
+  Download,
 } from '@mui/icons-material';
 import { OntologyDialog } from './OntologyDialog';
 import apiService from '../services/api';
@@ -122,6 +123,39 @@ export const OntologiesPage: React.FC = () => {
       loadOntologies();
     } catch (error) {
       console.error('Failed to update ontology:', error);
+    }
+  };
+
+  const handleDownloadOntology = async (ontologyId: string, ontologyName: string) => {
+    try {
+      const ontologyDetail = await apiService.getOntology(ontologyId);
+      
+      // Create the JSON data to download
+      const jsonData = {
+        name: ontologyDetail.name,
+        description: ontologyDetail.description,
+        version: ontologyDetail.version,
+        status: ontologyDetail.status,
+        triples: ontologyDetail.triples,
+        created_at: ontologyDetail.created_at,
+        updated_at: ontologyDetail.updated_at,
+      };
+
+      // Create blob and download
+      const blob = new Blob([JSON.stringify(jsonData, null, 2)], {
+        type: 'application/json',
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${ontologyName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_ontology.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download ontology:', error);
     }
   };
 
@@ -256,6 +290,15 @@ export const OntologiesPage: React.FC = () => {
                         onClick={() => handleEditClick(ontology.id)}
                       >
                         <Edit />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Download JSON">
+                      <IconButton 
+                        size="small" 
+                        color="primary"
+                        onClick={() => handleDownloadOntology(ontology.id, ontology.name)}
+                      >
+                        <Download />
                       </IconButton>
                     </Tooltip>
                     {ontology.status === OntologyStatus.DRAFT && (
