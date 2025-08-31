@@ -67,6 +67,10 @@ backend/data/deepinsight.db-journal
 *.db
 *.db-journal
 
+# DeepInsight export files
+backend/data/exports/
+*.csv
+
 # Flask stuff:
 instance/
 .webassets-cache
