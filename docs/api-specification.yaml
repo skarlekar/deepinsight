@@ -1,0 +1,825 @@
+openapi: 3.0.0
+info:
+  title: DeepInsight API
+  description: MVP API for document ontology extraction and graph database export
+  version: 1.0.0
+  contact:
+    name: DeepInsight Team
+    email: support@deepinsight.ai
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.deepinsight.app
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication Endpoints
+  /api/v1/auth/register:
+    post:
+      summary: Register new user
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  pattern: '^[a-zA-Z0-9_]+$'
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+            example:
+              username: "john_doe"
+              email: "john@example.com"
+              password: "SecurePass123!"
+      responses:
+        201:
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        400:
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        409:
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      summary: User login
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+            example:
+              username: "john_doe"
+              password: "SecurePass123!"
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        401:
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/logout:
+    post:
+      summary: User logout
+      tags: [Authentication]
+      responses:
+        200:
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # Document Management
+  /api/v1/documents/upload:
+    post:
+      summary: Upload document for processing
+      tags: [Documents]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file (PDF, DOCX, TXT, MD)
+      responses:
+        201:
+          description: Upload successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        400:
+          description: Invalid file type or size
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        413:
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/documents:
+    get:
+      summary: List user documents
+      tags: [Documents]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        200:
+          description: Documents retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentResponse'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+  /api/v1/documents/{document_id}:
+    get:
+      summary: Get document details
+      tags: [Documents]
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Document retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        404:
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete document
+      tags: [Documents]
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Document deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        404:
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/documents/{document_id}/status:
+    get:
+      summary: Get document processing status
+      tags: [Documents]
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  document_id:
+                    type: string
+                  status:
+                    $ref: '#/components/schemas/DocumentStatus'
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                  error_message:
+                    type: string
+                    nullable: true
+
+  # Ontology Management
+  /api/v1/ontologies:
+    get:
+      summary: List user ontologies
+      tags: [Ontologies]
+      parameters:
+        - name: document_id
+          in: query
+          schema:
+            type: string
+          description: Filter by document ID
+      responses:
+        200:
+          description: Ontologies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OntologyResponse'
+
+    post:
+      summary: Create ontology from document
+      tags: [Ontologies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OntologyCreateRequest'
+      responses:
+        201:
+          description: Ontology creation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyResponse'
+
+  /api/v1/ontologies/{ontology_id}:
+    get:
+      summary: Get ontology details
+      tags: [Ontologies]
+      parameters:
+        - name: ontology_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Ontology retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyDetailResponse'
+
+    put:
+      summary: Update ontology
+      tags: [Ontologies]
+      parameters:
+        - name: ontology_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OntologyUpdateRequest'
+      responses:
+        200:
+          description: Ontology updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyResponse'
+
+    delete:
+      summary: Delete ontology
+      tags: [Ontologies]
+      parameters:
+        - name: ontology_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Ontology deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/v1/ontologies/{ontology_id}/export:
+    get:
+      summary: Export ontology as JSON
+      tags: [Ontologies]
+      parameters:
+        - name: ontology_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Ontology exported successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OntologyTriple'
+
+  # Data Extraction
+  /api/v1/extractions:
+    get:
+      summary: List user extractions
+      tags: [Extractions]
+      responses:
+        200:
+          description: Extractions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExtractionResponse'
+
+    post:
+      summary: Start data extraction
+      tags: [Extractions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractionRequest'
+      responses:
+        201:
+          description: Extraction started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionResponse'
+
+  /api/v1/extractions/{extraction_id}:
+    get:
+      summary: Get extraction details
+      tags: [Extractions]
+      parameters:
+        - name: extraction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Extraction retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionDetailResponse'
+
+  /api/v1/extractions/{extraction_id}/status:
+    get:
+      summary: Get extraction processing status
+      tags: [Extractions]
+      parameters:
+        - name: extraction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  extraction_id:
+                    type: string
+                  status:
+                    $ref: '#/components/schemas/ExtractionStatus'
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                  nodes_count:
+                    type: integer
+                    nullable: true
+                  relationships_count:
+                    type: integer
+                    nullable: true
+                  error_message:
+                    type: string
+                    nullable: true
+
+  # CSV Export
+  /api/v1/exports/neo4j/{extraction_id}:
+    get:
+      summary: Export extraction data to Neo4j CSV format
+      tags: [Exports]
+      parameters:
+        - name: extraction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Neo4j CSV files generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes_csv_url:
+                    type: string
+                  relationships_csv_url:
+                    type: string
+                  download_expires_at:
+                    type: string
+                    format: date-time
+
+  /api/v1/exports/neptune/{extraction_id}:
+    get:
+      summary: Export extraction data to Neptune CSV format
+      tags: [Exports]
+      parameters:
+        - name: extraction_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Neptune CSV files generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vertices_csv_url:
+                    type: string
+                  edges_csv_url:
+                    type: string
+                  download_expires_at:
+                    type: string
+                    format: date-time
+
+  # Health Check
+  /health:
+    get:
+      summary: Health check endpoint
+      tags: [System]
+      security: []
+      responses:
+        200:
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                  database:
+                    type: string
+                    example: "connected"
+                  claude_api:
+                    type: string
+                    example: "available"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Authentication Schemas
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # Document Schemas
+    DocumentStatus:
+      type: string
+      enum: [uploaded, processing, completed, error]
+
+    DocumentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        original_filename:
+          type: string
+        file_size:
+          type: integer
+        mime_type:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        created_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+
+    # Ontology Schemas
+    OntologyTriple:
+      type: object
+      properties:
+        subject:
+          type: object
+          properties:
+            entity_type:
+              type: string
+            type_variations:
+              type: array
+              items:
+                type: string
+            primitive_type:
+              type: string
+              enum: [string, integer, float, boolean]
+        relationship:
+          type: object
+          properties:
+            relationship_type:
+              type: string
+            type_variations:
+              type: array
+              items:
+                type: string
+        object:
+          type: object
+          properties:
+            entity_type:
+              type: string
+            type_variations:
+              type: array
+              items:
+                type: string
+            primitive_type:
+              type: string
+              enum: [string, integer, float, boolean]
+
+    OntologyCreateRequest:
+      type: object
+      required: [document_id, name]
+      properties:
+        document_id:
+          type: string
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        chunk_size:
+          type: integer
+          minimum: 100
+          maximum: 5000
+          default: 1000
+        overlap_percentage:
+          type: integer
+          minimum: 0
+          maximum: 50
+          default: 10
+
+    OntologyUpdateRequest:
+      type: object
+      required: [name, triples]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        triples:
+          type: array
+          items:
+            $ref: '#/components/schemas/OntologyTriple'
+
+    OntologyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        document_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [draft, processing, active, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OntologyDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/OntologyResponse'
+        - type: object
+          properties:
+            triples:
+              type: array
+              items:
+                $ref: '#/components/schemas/OntologyTriple'
+
+    # Extraction Schemas
+    ExtractionStatus:
+      type: string
+      enum: [pending, processing, completed, error]
+
+    ExtractionRequest:
+      type: object
+      required: [document_id, ontology_id]
+      properties:
+        document_id:
+          type: string
+        ontology_id:
+          type: string
+        chunk_size:
+          type: integer
+          minimum: 100
+          maximum: 5000
+          default: 1000
+        overlap_percentage:
+          type: integer
+          minimum: 0
+          maximum: 50
+          default: 10
+
+    ExtractionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        document_id:
+          type: string
+        ontology_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/ExtractionStatus'
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ExtractionDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ExtractionResponse'
+        - type: object
+          properties:
+            nodes_count:
+              type: integer
+              nullable: true
+            relationships_count:
+              type: integer
+              nullable: true
+            neo4j_export_available:
+              type: boolean
+            neptune_export_available:
+              type: boolean
+            error_message:
+              type: string
+              nullable: true
+
+    # Common Response Schemas
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+        timestamp:
+          type: string
+          format: date-time
