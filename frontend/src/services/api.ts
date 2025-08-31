@@ -13,7 +13,7 @@ class ApiService {
 
   constructor() {
     this.api = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || '/api',
+      baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
       timeout: 30000,
     });
 
@@ -21,6 +21,9 @@ class ApiService {
     this.api.interceptors.request.use((config) => {
       if (this.token) {
         config.headers.Authorization = `Bearer ${this.token}`;
+        console.log('API Request with token to:', config.url);
+      } else {
+        console.log('API Request without token to:', config.url);
       }
       return config;
     });
@@ -31,7 +34,7 @@ class ApiService {
       (error: AxiosError) => {
         if (error.response?.status === 401) {
           this.clearToken();
-          window.location.href = '/login';
+          // Don't redirect here - let the AuthContext handle this
         }
         throw error;
       }
@@ -51,6 +54,7 @@ class ApiService {
   setToken(token: string) {
     this.token = token;
     localStorage.setItem('access_token', token);
+    console.log('Token set:', token ? 'Token stored' : 'No token');
   }
 
   clearToken() {
