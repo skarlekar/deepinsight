@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# DeepInsight Backend Startup Script
+# DeepInsight Backend Startup Script (Fixed)
 
 echo "🚀 Starting DeepInsight Backend..."
 
@@ -12,23 +12,9 @@ fi
 
 cd backend
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "📦 Creating Python virtual environment..."
-    python3 -m venv venv
-fi
-
-# Activate virtual environment
-echo "🔧 Activating virtual environment..."
-source venv/bin/activate
-
-# Install dependencies
-echo "📚 Installing dependencies..."
-pip install -r requirements.txt
-
-# Install additional required packages
-echo "🔧 Installing additional packages..."
-pip install email-validator
+# Install email-validator directly with pip (works with any Python environment)
+echo "🔧 Installing required packages..."
+pip install email-validator pydantic[email] fastapi uvicorn sqlalchemy python-jose[cryptography] passlib[bcrypt] python-multipart anthropic requests aiofiles python-dateutil PyMuPDF python-docx python-magic
 
 # Create necessary directories
 echo "📁 Creating data directories..."
@@ -46,4 +32,4 @@ echo "   Backend will be available at: http://localhost:8000"
 echo "   API docs will be available at: http://localhost:8000/docs"
 echo ""
 
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
