@@ -246,3 +246,50 @@ async def download_document(
         filename=document.original_filename,
         media_type=document.mime_type
     )
+
+@router.get("/{document_id}/location/{source_location}")
+async def get_text_location(
+    document_id: str,
+    source_location: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    context_chars: int = 100
+):
+    """Get text at specified character location in document with context."""
+    from utils.location_finder import find_text_at_location
+    
+    # Verify document exists and belongs to user
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == current_user.id
+    ).first()
+    
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+    
+    # Get the document file path
+    file_path = Path(settings.upload_directory) / document.filename
+    
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document file not found on server"
+        )
+    
+    # Find the location
+    result = find_text_at_location(str(file_path), source_location, context_chars)
+    
+    if "error" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["error"]
+        )
+    
+    # Add document info to result
+    result["document_name"] = document.original_filename
+    result["document_id"] = document_id
+    
+    return result

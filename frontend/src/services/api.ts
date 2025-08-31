@@ -122,8 +122,53 @@ class ApiService {
     return response.data;
   }
 
+  async getTextLocation(documentId: string, sourceLocation: string, contextChars: number = 100): Promise<any> {
+    const response = await this.api.get(`/documents/${documentId}/location/${sourceLocation}`, {
+      params: { context_chars: contextChars }
+    });
+    return response.data;
+  }
+
   getDocumentDownloadUrl(id: string): string {
     return `${this.api.defaults.baseURL}/documents/${id}/download`;
+  }
+
+  async downloadDocument(id: string, originalFilename?: string): Promise<void> {
+    const response = await this.api.get(`/documents/${id}/download`, {
+      responseType: 'blob',
+    });
+    
+    // Get filename from content-disposition header, fallback to original filename, or use default
+    let filename = originalFilename || 'document';
+    const contentDisposition = response.headers['content-disposition'];
+    
+    if (contentDisposition) {
+      // Try different patterns for content-disposition header
+      const patterns = [
+        /filename\*=UTF-8''(.+)/,  // RFC 5987 encoding
+        /filename="(.+?)"/,         // Quoted filename
+        /filename=([^;\s]+)/        // Unquoted filename
+      ];
+      
+      for (const pattern of patterns) {
+        const match = contentDisposition.match(pattern);
+        if (match) {
+          filename = decodeURIComponent(match[1]);
+          break;
+        }
+      }
+    }
+    
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   }
 
   // Ontology endpoints

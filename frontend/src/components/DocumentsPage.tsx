@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -37,15 +37,13 @@ export const DocumentsPage: React.FC = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
 
-  useEffect(() => {
-    loadDocuments();
-  }, [page, rowsPerPage]);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiService.getDocuments(page + 1, rowsPerPage);
@@ -56,7 +54,11 @@ export const DocumentsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, rowsPerPage]);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   const handleDeleteClick = (document: Document) => {
     setDocumentToDelete(document);
@@ -108,6 +110,22 @@ export const DocumentsPage: React.FC = () => {
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
+  };
+
+  const handleViewDetails = (document: Document) => {
+    setSelectedDocument(document);
+    setDetailsDialogOpen(true);
+  };
+
+  const handleDownload = async (document: Document) => {
+    try {
+      await apiService.downloadDocument(document.id, document.original_filename);
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback to window.open if authenticated download fails
+      const url = apiService.getDocumentDownloadUrl(document.id);
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -212,17 +230,17 @@ export const DocumentsPage: React.FC = () => {
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Tooltip title="View Details">
-                          <IconButton size="small">
+                          <IconButton 
+                            size="small"
+                            onClick={() => handleViewDetails(document)}
+                          >
                             <Visibility />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Download">
                           <IconButton 
                             size="small"
-                            onClick={() => {
-                              const url = apiService.getDocumentDownloadUrl(document.id);
-                              window.open(url, '_blank');
-                            }}
+                            onClick={() => handleDownload(document)}
                           >
                             <GetApp />
                           </IconButton>
@@ -283,6 +301,66 @@ export const DocumentsPage: React.FC = () => {
           </Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Document Details Dialog */}
+      <Dialog
+        open={detailsDialogOpen}
+        onClose={() => setDetailsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Document Details</DialogTitle>
+        <DialogContent>
+          {selectedDocument && (
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Filename:</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>{selectedDocument.original_filename}</Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>Document ID:</Typography>
+              <Typography variant="body2" sx={{ mb: 2, fontFamily: 'monospace' }}>{selectedDocument.id}</Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>File Size:</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>{formatFileSize(selectedDocument.file_size)}</Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>MIME Type:</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>{selectedDocument.mime_type}</Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>Status:</Typography>
+              <Chip
+                label={selectedDocument.status}
+                color={getStatusColor(selectedDocument.status) as any}
+                size="small"
+                sx={{ mb: 2 }}
+              />
+              
+              <Typography variant="subtitle2" gutterBottom>Uploaded:</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>{formatDate(selectedDocument.created_at)}</Typography>
+              
+              {selectedDocument.processed_at && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom>Processed:</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>{formatDate(selectedDocument.processed_at)}</Typography>
+                </>
+              )}
+              
+              {selectedDocument.error_message && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom color="error">Error Message:</Typography>
+                  <Typography variant="body2" color="error">{selectedDocument.error_message}</Typography>
+                </>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => selectedDocument && handleDownload(selectedDocument)} startIcon={<GetApp />}>
+            Download
+          </Button>
+          <Button onClick={() => setDetailsDialogOpen(false)} variant="contained">
+            Close
           </Button>
         </DialogActions>
       </Dialog>
