@@ -1,7 +1,9 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth, AuthProvider } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Layout } from './components/Layout';
+import { NetworkGraphFullscreen } from './components/NetworkGraphFullscreen';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -27,7 +29,12 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <Router>
+        <Routes>
+          <Route path="/network-fullscreen" element={<NetworkGraphFullscreen />} />
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 };

@@ -36,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import { ExtractionDialog } from './ExtractionDialog';
 import { ExtractionProgressDialog } from './ExtractionProgressDialog';
+import { NetworkGraph } from './NetworkGraph';
 import apiService from '../services/api';
 import { Extraction, ExtractionStatus } from '../types';
 
@@ -485,6 +486,15 @@ export const ExtractionsPage: React.FC = () => {
                   </Card>
                 </Grid>
               </Grid>
+
+              {/* Network Visualization */}
+              {(extractionResults.nodes?.length > 0 || extractionResults.relationships?.length > 0) && (
+                <NetworkGraph 
+                  nodes={extractionResults.nodes || []}
+                  relationships={extractionResults.relationships || []}
+                  height={400}
+                />
+              )}
 
               {extractionResults.nodes?.length > 0 && (
                 <>
