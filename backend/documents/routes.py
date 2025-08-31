@@ -82,7 +82,7 @@ async def upload_document(
         
         # Update document with extracted content
         document.content_text = text_content
-        document.metadata = {
+        document.document_metadata = {
             "title": metadata.title,
             "author": metadata.author,
             "word_count": metadata.word_count,

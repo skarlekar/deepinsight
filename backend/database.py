@@ -50,7 +50,7 @@ class Document(Base):
     processed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
     content_text = Column(Text, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    document_metadata = Column(JSON, nullable=True)
     
     # Relationships
     user = relationship("User", back_populates="documents")
@@ -86,7 +86,7 @@ class Extraction(Base):
     status = Column(String(20), nullable=False, default="pending")
     nodes = Column(JSON, nullable=True)
     relationships = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    extraction_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)

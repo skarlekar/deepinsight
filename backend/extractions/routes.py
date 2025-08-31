@@ -55,7 +55,7 @@ async def create_extraction(
         status="pending",
         nodes=[],
         relationships=[],
-        metadata={
+        extraction_metadata={
             "chunk_size": extraction_data.chunk_size,
             "overlap_percentage": extraction_data.overlap_percentage
         }
@@ -150,7 +150,7 @@ def process_data_extraction(
         extraction.completed_at = datetime.utcnow()
         
         # Update metadata with counts
-        extraction.metadata.update({
+        extraction.extraction_metadata.update({
             "nodes_count": len(final_nodes),
             "relationships_count": len(all_relationships),
             "chunks_processed": len(chunks)
@@ -162,8 +162,8 @@ def process_data_extraction(
         # Handle any errors
         if extraction:
             extraction.status = "error"
-            extraction.metadata = extraction.metadata or {}
-            extraction.metadata["error_message"] = str(e)
+            extraction.extraction_metadata = extraction.extraction_metadata or {}
+            extraction.extraction_metadata["error_message"] = str(e)
             db.commit()
     finally:
         db.close()
@@ -203,7 +203,7 @@ async def get_extraction(
         "relationships_count": len(extraction.relationships or []),
         "neo4j_export_available": extraction.status == "completed",
         "neptune_export_available": extraction.status == "completed",
-        "error_message": extraction.metadata.get("error_message") if extraction.metadata else None
+        "error_message": extraction.extraction_metadata.get("error_message") if extraction.extraction_metadata else None
     })
     
     return ExtractionDetailResponse(**response_data)
@@ -242,7 +242,7 @@ async def get_extraction_status(
         progress=progress,
         nodes_count=len(extraction.nodes or []),
         relationships_count=len(extraction.relationships or []),
-        error_message=extraction.metadata.get("error_message") if extraction.metadata else None
+        error_message=extraction.extraction_metadata.get("error_message") if extraction.extraction_metadata else None
     )
 
 @router.get("/{extraction_id}/result", response_model=ExtractionResult)
@@ -283,7 +283,7 @@ async def get_extraction_result(
     return ExtractionResult(
         nodes=nodes,
         relationships=relationships,
-        metadata=extraction.metadata or {}
+        metadata=extraction.extraction_metadata or {}
     )
 
 @router.delete("/{extraction_id}")
