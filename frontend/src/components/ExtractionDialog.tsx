@@ -36,6 +36,7 @@ export const ExtractionDialog: React.FC<ExtractionDialogProps> = ({
   const [formData, setFormData] = useState({
     document_id: '',
     ontology_id: '',
+    additional_instructions: '',
     chunk_size: 1000,
     overlap_percentage: 10,
   });
@@ -72,6 +73,7 @@ export const ExtractionDialog: React.FC<ExtractionDialogProps> = ({
       await apiService.createExtraction({
         document_id: formData.document_id,
         ontology_id: formData.ontology_id,
+        additional_instructions: formData.additional_instructions || undefined,
         chunk_size: formData.chunk_size,
         overlap_percentage: formData.overlap_percentage,
       });
@@ -81,6 +83,7 @@ export const ExtractionDialog: React.FC<ExtractionDialogProps> = ({
       setFormData({
         document_id: '',
         ontology_id: '',
+        additional_instructions: '',
         chunk_size: 1000,
         overlap_percentage: 10,
       });
@@ -97,6 +100,7 @@ export const ExtractionDialog: React.FC<ExtractionDialogProps> = ({
       setFormData({
         document_id: '',
         ontology_id: '',
+        additional_instructions: '',
         chunk_size: 1000,
         overlap_percentage: 10,
       });
@@ -150,6 +154,17 @@ export const ExtractionDialog: React.FC<ExtractionDialogProps> = ({
               ))}
             </Select>
           </FormControl>
+
+          <TextField
+            fullWidth
+            label="Additional Instructions (Optional)"
+            value={formData.additional_instructions}
+            onChange={(e) => setFormData({ ...formData, additional_instructions: e.target.value })}
+            multiline
+            rows={3}
+            placeholder="Provide additional instructions for the LLM to guide data extraction..."
+            sx={{ mb: 3 }}
+          />
 
           {(documents.length === 0 || ontologies.length === 0) && (
             <Alert severity="info" sx={{ mb: 2 }}>

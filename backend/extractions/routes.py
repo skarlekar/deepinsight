@@ -67,7 +67,14 @@ async def create_extraction(
     if overlap_percentage is None:
         overlap_percentage = 10
     
-    # Create extraction record
+    # Create extraction record with additional instructions in metadata
+    metadata = {
+        "chunk_size": chunk_size,
+        "overlap_percentage": overlap_percentage
+    }
+    if extraction_data.additional_instructions:
+        metadata['additional_instructions'] = extraction_data.additional_instructions
+    
     extraction = Extraction(
         user_id=current_user.id,
         document_id=extraction_data.document_id,
@@ -75,10 +82,7 @@ async def create_extraction(
         status="pending",
         nodes=[],
         relationships=[],
-        extraction_metadata={
-            "chunk_size": chunk_size,
-            "overlap_percentage": overlap_percentage
-        }
+        extraction_metadata=metadata
     )
     
     db.add(extraction)
@@ -93,7 +97,8 @@ async def create_extraction(
         ontology.triples,
         chunk_size,
         overlap_percentage,
-        current_user.id
+        current_user.id,
+        extraction_data.additional_instructions
     )
     
     return ExtractionResponse.model_validate(extraction)
@@ -104,10 +109,15 @@ def process_data_extraction(
     ontology_triples: List,
     chunk_size: int,
     overlap_percentage: int,
-    user_id: str
+    user_id: str,
+    additional_instructions: str = None
 ):
     """Background task to process data extraction"""
     print(f"[EXTRACTION] Starting background processing for extraction {extraction_id}")
+    if additional_instructions:
+        print(f"[EXTRACTION] Additional instructions provided: {additional_instructions[:100]}...")
+    else:
+        print(f"[EXTRACTION] No additional instructions provided")
     from database import SessionLocal
     
     db = SessionLocal()
@@ -179,7 +189,8 @@ def process_data_extraction(
                     chunk["text"],
                     ontology_triples,
                     extraction.document_id,
-                    user_id
+                    user_id,
+                    additional_instructions
                 )
                 print(f"[EXTRACTION] Chunk {i+1} result: {result['status']}")
                 

@@ -208,6 +208,7 @@ class ApiService {
   async createExtraction(data: {
     document_id: string;
     ontology_id: string;
+    additional_instructions?: string;
     chunk_size?: number;
     overlap_percentage?: number;
   }): Promise<Extraction> {

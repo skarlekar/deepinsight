@@ -136,6 +136,13 @@ class OntologyCreationAgent:
                 additional_instructions_section=additional_instructions_section
             )
             
+            # Log the prompt for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[ONTOLOGY] Entity extraction prompt (first 500 chars):\n{prompt[:500]}...")
+            if additional_instructions:
+                logger.info(f"[ONTOLOGY] Additional instructions in entity extraction: {additional_instructions}")
+            
             client = Anthropic(api_key=settings.anthropic_api_key)
             response = client.messages.create(
                 model=settings.llm_model,
@@ -199,6 +206,13 @@ class OntologyCreationAgent:
                 document_text=state["document_text"][:4000],  # Smaller context for this step
                 additional_instructions_section=additional_instructions_section
             )
+            
+            # Log the prompt for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[ONTOLOGY] Triple creation prompt (first 500 chars):\n{prompt[:500]}...")
+            if additional_instructions:
+                logger.info(f"[ONTOLOGY] Additional instructions in triple creation: {additional_instructions}")
             
             client = Anthropic(api_key=settings.anthropic_api_key)
             response = client.messages.create(
@@ -395,6 +409,8 @@ class DataExtractionAgent:
     Ontology Triples:
     {ontology_triples}
 
+    {additional_instructions_section}
+
     Instructions:
     1. Find instances of the entities defined in the ontology within the text
     2. Extract relationships between these entities as specified in the ontology
@@ -447,14 +463,30 @@ class DataExtractionAgent:
     Only extract entities and relationships that are explicitly mentioned or clearly implied in the text.
     """
 
-    def extract_from_chunk(self, state: DataExtractionState) -> DataExtractionState:
+    def extract_from_chunk(self, state: DataExtractionState, additional_instructions: str = None) -> DataExtractionState:
         """Extract data from a single text chunk"""
         try:
+            # Prepare additional instructions section
+            additional_instructions_section = ""
+            if additional_instructions:
+                additional_instructions_section = f"Additional User Instructions:\n{additional_instructions}\n"
+                print(f"[EXTRACTION] Using additional instructions in prompt: {additional_instructions[:100]}...")
+            else:
+                print(f"[EXTRACTION] No additional instructions provided for extraction")
+            
             # Use enhanced prompt with mandatory name property requirements
             prompt = self.DATA_EXTRACTION_PROMPT_ENHANCED.format(
                 text_chunk=state["document_text"],
-                ontology_triples=json.dumps(state["ontology_triples"], indent=2)
+                ontology_triples=json.dumps(state["ontology_triples"], indent=2),
+                additional_instructions_section=additional_instructions_section
             )
+            
+            # Log the full prompt for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"[EXTRACTION] Full prompt being sent to LLM:\n{prompt[:500]}...")
+            if additional_instructions:
+                logger.info(f"[EXTRACTION] Additional instructions in prompt: {additional_instructions}")
             
             from config import get_settings
             settings = get_settings()
@@ -502,7 +534,7 @@ class DataExtractionAgent:
         
         return state
 
-    def process(self, document_text: str, ontology_triples: List[Dict], document_id: str, user_id: str) -> DataExtractionState:
+    def process(self, document_text: str, ontology_triples: List[Dict], document_id: str, user_id: str, additional_instructions: str = None) -> DataExtractionState:
         """Main processing pipeline"""
         state = DataExtractionState(
             document_text=document_text,
@@ -517,7 +549,7 @@ class DataExtractionAgent:
         )
         
         # Extract data from chunk
-        state = self.extract_from_chunk(state)
+        state = self.extract_from_chunk(state, additional_instructions)
         
         return state
 
@@ -543,7 +575,7 @@ def create_chunked_ontology_from_document(document_text: str, document_id: str, 
     agent = OntologyCreationAgent()
     return agent.process_chunked_ontology(document_text, document_id, user_id, chunk_size, overlap_percentage)
 
-def extract_data_with_ontology(document_text: str, ontology_triples: List[Dict], document_id: str, user_id: str) -> DataExtractionState:
+def extract_data_with_ontology(document_text: str, ontology_triples: List[Dict], document_id: str, user_id: str, additional_instructions: str = None) -> DataExtractionState:
     """Extract structured data using ontology"""
     agent = DataExtractionAgent()
-    return agent.process(document_text, ontology_triples, document_id, user_id)
+    return agent.process(document_text, ontology_triples, document_id, user_id, additional_instructions)

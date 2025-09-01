@@ -12,6 +12,7 @@ class ExtractionStatus(str, Enum):
 class ExtractionRequest(BaseModel):
     document_id: str
     ontology_id: str
+    additional_instructions: Optional[str] = Field(None, max_length=2000)
     chunk_size: int = Field(1000, ge=100, le=5000)
     overlap_percentage: int = Field(10, ge=0, le=50)
 

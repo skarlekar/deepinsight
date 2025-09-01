@@ -486,6 +486,18 @@ export const ExtractionsPage: React.FC = () => {
                 </Grid>
               </Grid>
 
+              {/* Additional Instructions */}
+              {extractionResults.metadata?.additional_instructions && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Additional Instructions Used
+                  </Typography>
+                  <Typography variant="body2" sx={{ backgroundColor: '#f5f5f5', padding: 2, borderRadius: 1 }}>
+                    {extractionResults.metadata.additional_instructions}
+                  </Typography>
+                </Box>
+              )}
+
               {/* Network Visualization */}
               {(extractionResults.nodes?.length > 0 || extractionResults.relationships?.length > 0) && (
                 <NetworkGraph 
