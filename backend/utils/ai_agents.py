@@ -68,6 +68,8 @@ class OntologyCreationAgent:
     3. Focus on entities that are likely to have relationships with other entities
     4. Provide variations of each entity type (synonyms, alternate forms)
 
+    {additional_instructions_section}
+
     Return a JSON array of entities in this format:
     [
         {{
@@ -96,6 +98,8 @@ class OntologyCreationAgent:
 
     Create relationship triples that represent how these entities relate to each other in the document context.
 
+    {additional_instructions_section}
+
     Return a JSON array of ontology triples in this format:
     [
         {{
@@ -119,11 +123,17 @@ class OntologyCreationAgent:
     Create 3-10 meaningful relationship triples that capture the key relationships in the document.
     """
 
-    def extract_entities(self, state: OntologyCreationState) -> OntologyCreationState:
+    def extract_entities(self, state: OntologyCreationState, additional_instructions: str = None) -> OntologyCreationState:
         """Extract entities from document text"""
         try:
+            # Prepare additional instructions section
+            additional_instructions_section = ""
+            if additional_instructions:
+                additional_instructions_section = f"Additional User Instructions:\n{additional_instructions}\n"
+            
             prompt = self.ENTITY_EXTRACTION_PROMPT.format(
-                document_text=state["document_text"][:8000]  # Limit for token constraints
+                document_text=state["document_text"][:8000],  # Limit for token constraints
+                additional_instructions_section=additional_instructions_section
             )
             
             client = Anthropic(api_key=settings.anthropic_api_key)
@@ -176,12 +186,18 @@ class OntologyCreationAgent:
         
         return state
 
-    def create_ontology_triples(self, state: OntologyCreationState) -> OntologyCreationState:
+    def create_ontology_triples(self, state: OntologyCreationState, additional_instructions: str = None) -> OntologyCreationState:
         """Create ontology triples from extracted entities"""
         try:
+            # Prepare additional instructions section
+            additional_instructions_section = ""
+            if additional_instructions:
+                additional_instructions_section = f"Additional User Instructions:\n{additional_instructions}\n"
+            
             prompt = self.ONTOLOGY_CREATION_PROMPT.format(
                 entities=json.dumps(state["extracted_entities"], indent=2),
-                document_text=state["document_text"][:4000]  # Smaller context for this step
+                document_text=state["document_text"][:4000],  # Smaller context for this step
+                additional_instructions_section=additional_instructions_section
             )
             
             client = Anthropic(api_key=settings.anthropic_api_key)
@@ -237,7 +253,8 @@ class OntologyCreationAgent:
 
     def process_chunked_ontology(self, document_text: str, document_id: str, user_id: str, 
                                 chunk_size: int = 6000, overlap_percentage: int = 20,
-                                db_session=None, ontology_id: str = None) -> OntologyCreationState:
+                                db_session=None, ontology_id: str = None, 
+                                additional_instructions: str = None) -> OntologyCreationState:
         """Chunked ontology generation for large documents"""
         from utils.file_processor import chunk_text
         
@@ -277,7 +294,7 @@ class OntologyCreationAgent:
                 )
                 
                 # Extract entities from this chunk
-                chunk_state = self.extract_entities(chunk_state)
+                chunk_state = self.extract_entities(chunk_state, additional_instructions)
                 
                 # Update chunk progress in database if available
                 if db_session and ontology_id:
@@ -314,7 +331,7 @@ class OntologyCreationAgent:
             state["status"] = "entities_extracted"
             
             # Step 4: Create ontology triples from unique entities
-            state = self.create_ontology_triples(state)
+            state = self.create_ontology_triples(state, additional_instructions)
             
             return state
             
@@ -341,7 +358,7 @@ class OntologyCreationAgent:
         
         return list(unique_entities.values())
 
-    def process(self, document_text: str, document_id: str, user_id: str) -> OntologyCreationState:
+    def process(self, document_text: str, document_id: str, user_id: str, additional_instructions: str = None) -> OntologyCreationState:
         """Main processing pipeline"""
         state = OntologyCreationState(
             document_text=document_text,
@@ -356,12 +373,12 @@ class OntologyCreationAgent:
         )
         
         # Step 1: Extract entities
-        state = self.extract_entities(state)
+        state = self.extract_entities(state, additional_instructions)
         if state["status"] == "error":
             return state
         
         # Step 2: Create ontology triples
-        state = self.create_ontology_triples(state)
+        state = self.create_ontology_triples(state, additional_instructions)
         
         return state
 

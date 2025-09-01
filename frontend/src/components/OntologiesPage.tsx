@@ -141,6 +141,7 @@ export const OntologiesPage: React.FC = () => {
         description: ontologyDetail.description,
         version: ontologyDetail.version,
         status: ontologyDetail.status,
+        additional_instructions: ontologyDetail.additional_instructions,
         triples: ontologyDetail.triples,
         created_at: ontologyDetail.created_at,
         updated_at: ontologyDetail.updated_at,
@@ -403,6 +404,11 @@ export const OntologiesPage: React.FC = () => {
               <Typography variant="body2" sx={{ mb: 2 }}>
                 <strong>Description:</strong> {selectedOntology.description || 'No description'}
               </Typography>
+              {selectedOntology.additional_instructions && (
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                  <strong>Additional Instructions:</strong> {selectedOntology.additional_instructions}
+                </Typography>
+              )}
               <Typography variant="body2" sx={{ mb: 2 }}>
                 <strong>Status:</strong> <Chip label={selectedOntology.status} size="small" />
               </Typography>

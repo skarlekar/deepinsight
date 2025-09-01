@@ -173,7 +173,7 @@ class ApiService {
   }
 
   // Ontology endpoints
-  async createOntology(data: { document_id: string; name: string; description?: string }): Promise<Ontology> {
+  async createOntology(data: { document_id: string; name: string; description?: string; additional_instructions?: string }): Promise<Ontology> {
     const response = await this.api.post<Ontology>('/ontologies', data);
     return response.data;
   }

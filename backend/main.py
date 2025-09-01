@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import uvicorn
+import logging
+import os
 from datetime import datetime
 
 from database import init_database
@@ -15,6 +17,17 @@ from exports.routes import router as exports_router
 from settings.routes import router as settings_router
 
 settings = get_settings()
+
+# Configure logging
+os.makedirs("logs", exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("logs/backend.log"),
+        logging.StreamHandler()  # Keep console output too
+    ]
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

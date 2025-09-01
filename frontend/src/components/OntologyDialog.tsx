@@ -35,6 +35,7 @@ export const OntologyDialog: React.FC<OntologyDialogProps> = ({
     name: '',
     description: '',
     document_id: '',
+    additional_instructions: '',
   });
   const [error, setError] = useState('');
 
@@ -65,11 +66,12 @@ export const OntologyDialog: React.FC<OntologyDialogProps> = ({
         document_id: formData.document_id,
         name: formData.name,
         description: formData.description || undefined,
+        additional_instructions: formData.additional_instructions || undefined,
       });
 
       onOntologyCreated();
       onClose();
-      setFormData({ name: '', description: '', document_id: '' });
+      setFormData({ name: '', description: '', document_id: '', additional_instructions: '' });
     } catch (error: any) {
       setError(error.response?.data?.error?.message || 'Failed to create ontology');
     } finally {
@@ -80,7 +82,7 @@ export const OntologyDialog: React.FC<OntologyDialogProps> = ({
   const handleClose = () => {
     if (!loading) {
       onClose();
-      setFormData({ name: '', description: '', document_id: '' });
+      setFormData({ name: '', description: '', document_id: '', additional_instructions: '' });
       setError('');
     }
   };
@@ -140,6 +142,17 @@ export const OntologyDialog: React.FC<OntologyDialogProps> = ({
             multiline
             rows={3}
             placeholder="Describe the purpose and scope of this ontology..."
+            sx={{ mb: 2 }}
+          />
+
+          <TextField
+            fullWidth
+            label="Additional Instructions (Optional)"
+            value={formData.additional_instructions}
+            onChange={(e) => setFormData({ ...formData, additional_instructions: e.target.value })}
+            multiline
+            rows={3}
+            placeholder="Provide additional instructions for the LLM to guide ontology generation..."
           />
 
           {loading && (

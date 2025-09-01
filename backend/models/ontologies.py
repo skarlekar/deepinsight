@@ -54,6 +54,7 @@ class OntologyCreateRequest(BaseModel):
     document_id: str
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
+    additional_instructions: Optional[str] = Field(None, max_length=2000)
     chunk_size: int = Field(1000, ge=100, le=5000)
     overlap_percentage: int = Field(10, ge=0, le=50)
     
@@ -82,6 +83,7 @@ class OntologyResponse(BaseModel):
     document_id: str
     name: str
     description: Optional[str] = None
+    additional_instructions: Optional[str] = None
     version: int
     status: OntologyStatus
     created_at: datetime

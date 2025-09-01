@@ -139,6 +139,7 @@ export interface Ontology {
   document_id: string;
   name: string;
   description?: string;
+  additional_instructions?: string;
   version: number;
   status: OntologyStatus;
   created_at: string;

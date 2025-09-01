@@ -33,14 +33,19 @@ async def create_ontology(
             detail="Document not found or not processed yet"
         )
     
-    # Create ontology record
+    # Create ontology record with additional instructions in metadata
+    metadata = {}
+    if ontology_data.additional_instructions:
+        metadata['additional_instructions'] = ontology_data.additional_instructions
+    
     ontology = Ontology(
         user_id=current_user.id,
         document_id=ontology_data.document_id,
         name=ontology_data.name,
         description=ontology_data.description,
         status="processing",
-        triples=[]
+        triples=[],
+        ontology_metadata=metadata
     )
     
     db.add(ontology)
@@ -53,12 +58,13 @@ async def create_ontology(
         ontology.id,
         document.content_text,
         current_user.id,
-        db
+        db,
+        ontology_data.additional_instructions
     )
     
     return OntologyResponse.model_validate(ontology)
 
-def process_ontology_creation(ontology_id: str, document_text: str, user_id: str, db: Session):
+def process_ontology_creation(ontology_id: str, document_text: str, user_id: str, db: Session, additional_instructions: str = None):
     """Background task to process ontology creation with AI"""
     print(f"[ONTOLOGY] Starting background processing for ontology {ontology_id}")
     from database import SessionLocal
@@ -70,9 +76,10 @@ def process_ontology_creation(ontology_id: str, document_text: str, user_id: str
         if not ontology:
             return
         
-        # Initialize progress tracking
+        # Initialize progress tracking - preserve existing metadata
         ontology.status = "processing"
-        ontology.ontology_metadata = {
+        existing_metadata = ontology.ontology_metadata or {}
+        processing_metadata = {
             "total_chunks": 1,
             "processed_chunks": 0,
             "current_chunk": 0,
@@ -80,6 +87,8 @@ def process_ontology_creation(ontology_id: str, document_text: str, user_id: str
             "document_length": len(document_text),
             "processing_mode": "standard"
         }
+        # Merge existing metadata with processing metadata
+        ontology.ontology_metadata = {**existing_metadata, **processing_metadata}
         db.commit()
         print(f"[ONTOLOGY] Updated status to processing for {ontology_id}")
         
@@ -123,9 +132,11 @@ def process_ontology_creation(ontology_id: str, document_text: str, user_id: str
             
             result = agent.process_chunked_ontology(document_text, ontology.document_id, user_id, 
                                                   chunk_size=chunk_size, overlap_percentage=overlap_percentage,
-                                                  db_session=db, ontology_id=ontology_id)
+                                                  db_session=db, ontology_id=ontology_id, 
+                                                  additional_instructions=additional_instructions)
         else:
-            result = agent.process(document_text, ontology.document_id, user_id)
+            result = agent.process(document_text, ontology.document_id, user_id, 
+                                 additional_instructions=additional_instructions)
         
         if result["status"] == "ontology_created":
             # Convert AI result to OntologyTriple format
@@ -202,7 +213,17 @@ async def list_ontologies(
         query = query.filter(Ontology.document_id == document_id)
     
     ontologies = query.all()
-    return [OntologyResponse.model_validate(ont) for ont in ontologies]
+    
+    # Build response with additional_instructions from metadata
+    results = []
+    for ont in ontologies:
+        response_data = OntologyResponse.model_validate(ont).model_dump()
+        # Extract additional_instructions from metadata
+        if ont.ontology_metadata and 'additional_instructions' in ont.ontology_metadata:
+            response_data["additional_instructions"] = ont.ontology_metadata['additional_instructions']
+        results.append(OntologyResponse(**response_data))
+    
+    return results
 
 @router.get("/{ontology_id}", response_model=OntologyDetailResponse)
 async def get_ontology(
@@ -232,6 +253,10 @@ async def get_ontology(
     
     response_data = OntologyResponse.model_validate(ontology).model_dump()
     response_data["triples"] = triples
+    
+    # Extract additional_instructions from metadata
+    if ontology.ontology_metadata and 'additional_instructions' in ontology.ontology_metadata:
+        response_data["additional_instructions"] = ontology.ontology_metadata['additional_instructions']
     
     return OntologyDetailResponse(**response_data)
 
@@ -306,7 +331,8 @@ async def reprocess_ontology(
         ontology.id,
         document.content_text,
         current_user.id,
-        db
+        db,
+        None  # No additional instructions for reprocessing
     )
     
     return {"message": "Ontology reprocessing started"}
