@@ -135,6 +135,49 @@ Frontend (`frontend/.env.local`):
 REACT_APP_API_URL=http://localhost:8000
 ```
 
+### SECRET_KEY Configuration
+
+The `SECRET_KEY` is a critical security component used for **JWT token authentication**. It cryptographically signs and verifies user session tokens to ensure secure authentication.
+
+#### Why SECRET_KEY is Required
+
+- **Token Security**: Signs JWT tokens to prevent tampering and forgery
+- **Session Protection**: Ensures only authentic tokens can access protected resources
+- **Authentication Integrity**: Validates that tokens were issued by your application
+
+#### How to Generate a Secure SECRET_KEY
+
+**Option 1: Using Python (Recommended)**
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**Option 2: Using OpenSSL**
+```bash
+openssl rand -base64 32
+```
+
+**Option 3: Online Generator**
+Use a cryptographically secure online generator like https://generate-secret.now.sh/32
+
+#### SECRET_KEY Security Guidelines
+
+⚠️ **Important Security Notes:**
+- **Never commit** the SECRET_KEY to version control
+- **Use different keys** for development, staging, and production
+- **Keep it secret** - anyone with the key can forge tokens
+- **Make it random** - at least 32 characters of random data
+- **Changing the key** invalidates all existing user sessions
+
+#### Example .env Configuration
+```env
+# Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY=abc123def456ghi789jkl012mno345pqr678stu901vwx234yz
+ANTHROPIC_API_KEY=your-anthropic-key
+```
+
+If you start the application without a valid SECRET_KEY, authentication will fail and users cannot log in.
+
 ## Security
 
 - Password requirements: 8+ chars, uppercase, lowercase, number, special character
