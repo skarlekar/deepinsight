@@ -36,6 +36,8 @@ class Settings(BaseSettings):
         "text/markdown"
     ]
     
+    # Processing settings
+    # Chunked ontology generation is now enabled by default for large documents (>8K chars)
     
     class Config:
         env_file = ".env"

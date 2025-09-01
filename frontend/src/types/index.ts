@@ -6,6 +6,56 @@ export interface User {
   created_at: string;
 }
 
+// User Settings types
+export interface UserSettings {
+  id: string;
+  user_id: string;
+  
+  // Processing preferences
+  default_chunk_size: number;
+  default_overlap_percentage: number;
+  
+  // Notification preferences
+  email_notifications: boolean;
+  extraction_complete: boolean;
+  ontology_created: boolean;
+  system_updates: boolean;
+  
+  // Appearance preferences
+  theme: 'light' | 'dark' | 'auto';
+  language: string;
+  
+  // API configuration
+  anthropic_api_key_configured: boolean;
+  max_retries: number;
+  timeout_seconds: number;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSettingsUpdate {
+  // Processing preferences
+  default_chunk_size?: number;
+  default_overlap_percentage?: number;
+  
+  // Notification preferences
+  email_notifications?: boolean;
+  extraction_complete?: boolean;
+  ontology_created?: boolean;
+  system_updates?: boolean;
+  
+  // Appearance preferences
+  theme?: 'light' | 'dark' | 'auto';
+  language?: string;
+  
+  // API configuration
+  anthropic_api_key?: string;
+  max_retries?: number;
+  timeout_seconds?: number;
+}
+
 export interface AuthResponse {
   access_token: string;
   token_type: string;

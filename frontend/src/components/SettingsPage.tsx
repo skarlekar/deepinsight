@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Paper,
   Grid,
   Card,
   CardContent,
@@ -26,7 +25,6 @@ import {
 import {
   Person,
   Notifications,
-  Security,
   Palette,
   Storage,
   Api,
@@ -36,71 +34,130 @@ import {
   AccountCircle,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { apiService } from '../services/api';
+import { UserSettings, UserSettingsUpdate } from '../types';
 
 export const SettingsPage: React.FC = () => {
   const { user } = useAuth();
-  const [settings, setSettings] = useState({
-    notifications: {
-      emailNotifications: true,
-      extractionComplete: true,
-      ontologyCreated: true,
-      systemUpdates: false,
-    },
-    preferences: {
-      theme: 'light',
-      language: 'en',
-      defaultChunkSize: 1000,
-      defaultOverlap: 10,
-    },
-    api: {
-      anthropicApiKey: '',
-      maxRetries: 3,
-      timeout: 30,
-    }
-  });
-
+  const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string>('');
 
-  const handleSwitchChange = (category: string, field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category as keyof typeof prev],
-        [field]: event.target.checked,
+  // Load user settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const userSettings = await apiService.getUserSettings();
+        setSettings(userSettings);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        setError('Failed to load settings');
+      } finally {
+        setLoading(false);
       }
-    }));
+    };
+
+    loadSettings();
+  }, []);
+
+  const handleSwitchChange = (field: keyof UserSettings) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!settings) return;
+    setSettings(prev => prev ? {
+      ...prev,
+      [field]: event.target.checked,
+    } : null);
   };
 
-  const handleSelectChange = (category: string, field: string) => (event: any) => {
-    setSettings(prev => ({
+  const handleSelectChange = (field: keyof UserSettings) => (event: any) => {
+    if (!settings) return;
+    setSettings(prev => prev ? {
       ...prev,
-      [category]: {
-        ...prev[category as keyof typeof prev],
-        [field]: event.target.value,
-      }
-    }));
+      [field]: event.target.value,
+    } : null);
   };
 
-  const handleTextChange = (category: string, field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSettings(prev => ({
+  const handleTextChange = (field: keyof UserSettings) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!settings) return;
+    const value = field === 'default_chunk_size' || field === 'default_overlap_percentage' || field === 'max_retries' || field === 'timeout_seconds'
+      ? parseInt(event.target.value) || 0
+      : event.target.value;
+    
+    setSettings(prev => prev ? {
       ...prev,
-      [category]: {
-        ...prev[category as keyof typeof prev],
-        [field]: event.target.value,
-      }
-    }));
+      [field]: value,
+    } : null);
   };
 
   const handleSave = async () => {
+    if (!settings) return;
+    
     try {
-      // TODO: Save settings to backend
-      console.log('Saving settings:', settings);
+      setSaving(true);
+      setError('');
+      
+      const updateData: UserSettingsUpdate = {
+        default_chunk_size: settings.default_chunk_size,
+        default_overlap_percentage: settings.default_overlap_percentage,
+        email_notifications: settings.email_notifications,
+        extraction_complete: settings.extraction_complete,
+        ontology_created: settings.ontology_created,
+        system_updates: settings.system_updates,
+        theme: settings.theme,
+        language: settings.language,
+        max_retries: settings.max_retries,
+        timeout_seconds: settings.timeout_seconds
+      };
+      
+      const updatedSettings = await apiService.updateUserSettings(updateData);
+      setSettings(updatedSettings);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (error) {
       console.error('Failed to save settings:', error);
+      setError('Failed to save settings');
+    } finally {
+      setSaving(false);
     }
   };
+
+  const handleReset = async () => {
+    try {
+      setSaving(true);
+      setError('');
+      await apiService.resetUserSettings();
+      // Reload settings
+      const userSettings = await apiService.getUserSettings();
+      setSettings(userSettings);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (error) {
+      console.error('Failed to reset settings:', error);
+      setError('Failed to reset settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <Typography>Loading settings...</Typography>
+      </Box>
+    );
+  }
+
+  if (!settings) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          Failed to load settings. Please refresh the page.
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -184,8 +241,8 @@ export const SettingsPage: React.FC = () => {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={settings.notifications.emailNotifications}
-                      onChange={handleSwitchChange('notifications', 'emailNotifications')}
+                      checked={settings.email_notifications}
+                      onChange={handleSwitchChange('email_notifications')}
                     />
                   }
                   label="Email notifications"
@@ -193,8 +250,8 @@ export const SettingsPage: React.FC = () => {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={settings.notifications.extractionComplete}
-                      onChange={handleSwitchChange('notifications', 'extractionComplete')}
+                      checked={settings.extraction_complete}
+                      onChange={handleSwitchChange('extraction_complete')}
                     />
                   }
                   label="Extraction completion alerts"
@@ -202,8 +259,8 @@ export const SettingsPage: React.FC = () => {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={settings.notifications.ontologyCreated}
-                      onChange={handleSwitchChange('notifications', 'ontologyCreated')}
+                      checked={settings.ontology_created}
+                      onChange={handleSwitchChange('ontology_created')}
                     />
                   }
                   label="Ontology creation notifications"
@@ -211,8 +268,8 @@ export const SettingsPage: React.FC = () => {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={settings.notifications.systemUpdates}
-                      onChange={handleSwitchChange('notifications', 'systemUpdates')}
+                      checked={settings.system_updates}
+                      onChange={handleSwitchChange('system_updates')}
                     />
                   }
                   label="System update announcements"
@@ -236,9 +293,9 @@ export const SettingsPage: React.FC = () => {
                 <FormControl fullWidth>
                   <InputLabel>Theme</InputLabel>
                   <Select
-                    value={settings.preferences.theme}
+                    value={settings.theme}
                     label="Theme"
-                    onChange={handleSelectChange('preferences', 'theme')}
+                    onChange={handleSelectChange('theme')}
                   >
                     <MenuItem value="light">Light</MenuItem>
                     <MenuItem value="dark">Dark</MenuItem>
@@ -249,9 +306,9 @@ export const SettingsPage: React.FC = () => {
                 <FormControl fullWidth>
                   <InputLabel>Language</InputLabel>
                   <Select
-                    value={settings.preferences.language}
+                    value={settings.language}
                     label="Language"
-                    onChange={handleSelectChange('preferences', 'language')}
+                    onChange={handleSelectChange('language')}
                   >
                     <MenuItem value="en">English</MenuItem>
                     <MenuItem value="es">Español</MenuItem>
@@ -279,8 +336,8 @@ export const SettingsPage: React.FC = () => {
                   fullWidth
                   label="Default Chunk Size"
                   type="number"
-                  value={settings.preferences.defaultChunkSize}
-                  onChange={handleTextChange('preferences', 'defaultChunkSize')}
+                  value={settings.default_chunk_size}
+                  onChange={handleTextChange('default_chunk_size')}
                   helperText="Default text chunk size for processing (characters)"
                   InputProps={{ inputProps: { min: 500, max: 2000, step: 100 } }}
                 />
@@ -289,8 +346,8 @@ export const SettingsPage: React.FC = () => {
                   fullWidth
                   label="Default Overlap Percentage"
                   type="number"
-                  value={settings.preferences.defaultOverlap}
-                  onChange={handleTextChange('preferences', 'defaultOverlap')}
+                  value={settings.default_overlap_percentage}
+                  onChange={handleTextChange('default_overlap_percentage')}
                   helperText="Default overlap between chunks (percentage)"
                   InputProps={{ inputProps: { min: 0, max: 50, step: 5 } }}
                 />
@@ -315,8 +372,14 @@ export const SettingsPage: React.FC = () => {
                     fullWidth
                     label="Anthropic API Key"
                     type="password"
-                    value={settings.api.anthropicApiKey}
-                    onChange={handleTextChange('api', 'anthropicApiKey')}
+                    value={settings.anthropic_api_key_configured ? '••••••••••••••••••••' : ''}
+                    onChange={(e) => {
+                      if (!settings) return;
+                      setSettings(prev => prev ? {
+                        ...prev,
+                        anthropic_api_key_configured: e.target.value.length > 0
+                      } : null);
+                    }}
                     helperText="Your Anthropic API key for AI processing (stored securely)"
                     placeholder="sk-ant-..."
                   />
@@ -327,8 +390,8 @@ export const SettingsPage: React.FC = () => {
                     fullWidth
                     label="Max Retries"
                     type="number"
-                    value={settings.api.maxRetries}
-                    onChange={handleTextChange('api', 'maxRetries')}
+                    value={settings.max_retries}
+                    onChange={handleTextChange('max_retries')}
                     helperText="Maximum API retry attempts"
                     InputProps={{ inputProps: { min: 1, max: 10 } }}
                   />
@@ -339,8 +402,8 @@ export const SettingsPage: React.FC = () => {
                     fullWidth
                     label="Timeout (seconds)"
                     type="number"
-                    value={settings.api.timeout}
-                    onChange={handleTextChange('api', 'timeout')}
+                    value={settings.timeout_seconds}
+                    onChange={handleTextChange('timeout_seconds')}
                     helperText="API request timeout"
                     InputProps={{ inputProps: { min: 10, max: 120 } }}
                   />
@@ -359,8 +422,18 @@ export const SettingsPage: React.FC = () => {
 
         {/* Save Button */}
         <Grid item xs={12}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-            <Button variant="outlined" size="large">
+            <Button 
+              variant="outlined" 
+              size="large"
+              onClick={handleReset}
+              disabled={saving}
+            >
               Reset to Defaults
             </Button>
             <Button 
@@ -368,8 +441,9 @@ export const SettingsPage: React.FC = () => {
               size="large" 
               startIcon={<Save />}
               onClick={handleSave}
+              disabled={saving}
             >
-              Save Settings
+              {saving ? 'Saving...' : 'Save Settings'}
             </Button>
           </Box>
         </Grid>

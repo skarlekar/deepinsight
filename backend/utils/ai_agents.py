@@ -235,6 +235,112 @@ class OntologyCreationAgent:
         
         return state
 
+    def process_chunked_ontology(self, document_text: str, document_id: str, user_id: str, 
+                                chunk_size: int = 6000, overlap_percentage: int = 20,
+                                db_session=None, ontology_id: str = None) -> OntologyCreationState:
+        """Chunked ontology generation for large documents"""
+        from utils.file_processor import chunk_text
+        
+        state = OntologyCreationState(
+            document_text=document_text,
+            document_id=document_id,
+            user_id=user_id,
+            extracted_entities=[],
+            ontology_triples=[],
+            ontology_name=f"Ontology for document {document_id}",
+            ontology_description="Auto-generated chunked ontology from document content",
+            status="starting",
+            error_message=""
+        )
+        
+        try:
+            # Step 1: Chunk the document
+            chunks = chunk_text(document_text, chunk_size, overlap_percentage)
+            print(f"[ONTOLOGY] Processing {len(chunks)} chunks for ontology generation")
+            
+            all_entities = []
+            
+            # Step 2: Extract entities from each chunk
+            for i, chunk in enumerate(chunks):
+                print(f"[ONTOLOGY] Processing chunk {i+1}/{len(chunks)}")
+                
+                chunk_state = OntologyCreationState(
+                    document_text=chunk["text"],
+                    document_id=document_id,
+                    user_id=user_id,
+                    extracted_entities=[],
+                    ontology_triples=[],
+                    ontology_name=state["ontology_name"],
+                    ontology_description=state["ontology_description"],
+                    status="starting",
+                    error_message=""
+                )
+                
+                # Extract entities from this chunk
+                chunk_state = self.extract_entities(chunk_state)
+                
+                # Update chunk progress in database if available
+                if db_session and ontology_id:
+                    try:
+                        from database import Ontology
+                        ontology = db_session.query(Ontology).filter(Ontology.id == ontology_id).first()
+                        if ontology and ontology.ontology_metadata:
+                            metadata = ontology.ontology_metadata.copy()
+                            if "chunk_progress" in metadata and i < len(metadata["chunk_progress"]):
+                                if chunk_state["status"] == "error":
+                                    metadata["chunk_progress"][i] = {"status": "error"}
+                                    print(f"[ONTOLOGY] Error in chunk {i+1}: {chunk_state['error_message']}")
+                                else:
+                                    metadata["chunk_progress"][i] = {"status": "completed"}
+                                    print(f"[ONTOLOGY] Extracted {len(chunk_state['extracted_entities'])} entity types from chunk {i+1}")
+                                
+                                metadata["processed_chunks"] = i + 1
+                                ontology.ontology_metadata = metadata
+                                db_session.commit()
+                    except Exception as e:
+                        print(f"[ONTOLOGY] Warning: Could not update chunk progress: {str(e)}")
+                
+                if chunk_state["status"] == "error":
+                    continue
+                
+                # Collect all entities
+                all_entities.extend(chunk_state["extracted_entities"])
+            
+            # Step 3: Deduplicate entities
+            unique_entities = self._deduplicate_entities(all_entities)
+            print(f"[ONTOLOGY] Deduplicated to {len(unique_entities)} unique entity types")
+            
+            state["extracted_entities"] = unique_entities
+            state["status"] = "entities_extracted"
+            
+            # Step 4: Create ontology triples from unique entities
+            state = self.create_ontology_triples(state)
+            
+            return state
+            
+        except Exception as e:
+            logger.error(f"Chunked ontology creation failed: {str(e)}")
+            state["status"] = "error"
+            state["error_message"] = f"Chunked ontology creation failed: {str(e)}"
+            return state
+
+    def _deduplicate_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Deduplicate entities by entity_type"""
+        unique_entities = {}
+        
+        for entity in entities:
+            entity_type = entity.get("entity_type")
+            if entity_type not in unique_entities:
+                unique_entities[entity_type] = entity
+            else:
+                # Merge type_variations from duplicate entities
+                existing_variations = set(unique_entities[entity_type].get("type_variations", []))
+                new_variations = set(entity.get("type_variations", []))
+                merged_variations = list(existing_variations.union(new_variations))
+                unique_entities[entity_type]["type_variations"] = merged_variations
+        
+        return list(unique_entities.values())
+
     def process(self, document_text: str, document_id: str, user_id: str) -> OntologyCreationState:
         """Main processing pipeline"""
         state = OntologyCreationState(
@@ -401,8 +507,24 @@ class DataExtractionAgent:
 # Factory functions for easy access
 def create_ontology_from_document(document_text: str, document_id: str, user_id: str) -> OntologyCreationState:
     """Create ontology from document using AI agent"""
+    from config import get_settings
+    settings = get_settings()
+    
     agent = OntologyCreationAgent()
-    return agent.process(document_text, document_id, user_id)
+    
+    # Use chunked processing for large documents (>8K chars)
+    if len(document_text) > 8000:
+        print(f"[ONTOLOGY] Using chunked processing for large document ({len(document_text)} chars)")
+        return agent.process_chunked_ontology(document_text, document_id, user_id)
+    else:
+        print(f"[ONTOLOGY] Using standard processing for document ({len(document_text)} chars)")
+        return agent.process(document_text, document_id, user_id)
+
+def create_chunked_ontology_from_document(document_text: str, document_id: str, user_id: str, 
+                                        chunk_size: int = 6000, overlap_percentage: int = 20) -> OntologyCreationState:
+    """Create ontology from document using chunked processing (for testing/manual use)"""
+    agent = OntologyCreationAgent()
+    return agent.process_chunked_ontology(document_text, document_id, user_id, chunk_size, overlap_percentage)
 
 def extract_data_with_ontology(document_text: str, ontology_triples: List[Dict], document_id: str, user_id: str) -> DataExtractionState:
     """Extract structured data using ontology"""

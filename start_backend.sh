@@ -26,10 +26,6 @@ source venv/bin/activate
 echo "📚 Installing dependencies..."
 pip install -r requirements.txt
 
-# Install additional required packages
-echo "🔧 Installing additional packages..."
-pip install email-validator
-
 # Create necessary directories
 echo "📁 Creating data directories..."
 mkdir -p data/documents data/exports

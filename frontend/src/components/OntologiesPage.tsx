@@ -32,8 +32,10 @@ import {
   Replay,
   ExpandMore,
   Download,
+  Timeline,
 } from '@mui/icons-material';
 import { OntologyDialog } from './OntologyDialog';
+import { OntologyProgressDialog } from './OntologyProgressDialog';
 import apiService from '../services/api';
 import { Ontology, OntologyStatus } from '../types';
 import { formatDateToLocal } from '../utils/dateUtils';
@@ -48,6 +50,8 @@ export const OntologiesPage: React.FC = () => {
   const [selectedOntology, setSelectedOntology] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [ontologyToEdit, setOntologyToEdit] = useState<any>(null);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [selectedOntologyId, setSelectedOntologyId] = useState<string | null>(null);
 
   useEffect(() => {
     loadOntologies();
@@ -158,6 +162,18 @@ export const OntologiesPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to download ontology:', error);
     }
+  };
+
+  const handleViewProgress = (ontologyId: string) => {
+    setSelectedOntologyId(ontologyId);
+    setProgressDialogOpen(true);
+  };
+
+  const handleProgressDialogClose = () => {
+    setProgressDialogOpen(false);
+    setSelectedOntologyId(null);
+    // Refresh ontologies when dialog closes to get latest status
+    loadOntologies();
   };
 
   const getStatusColor = (status: OntologyStatus) => {
@@ -300,6 +316,17 @@ export const OntologiesPage: React.FC = () => {
                         <Download />
                       </IconButton>
                     </Tooltip>
+                    {ontology.status === OntologyStatus.PROCESSING && (
+                      <Tooltip title="View Progress">
+                        <IconButton 
+                          size="small" 
+                          color="primary"
+                          onClick={() => handleViewProgress(ontology.id)}
+                        >
+                          <Timeline />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     {ontology.status === OntologyStatus.DRAFT && (
                       <Tooltip title="Reprocess with AI">
                         <IconButton 
@@ -575,6 +602,13 @@ export const OntologiesPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Progress Dialog */}
+      <OntologyProgressDialog
+        open={progressDialogOpen}
+        onClose={handleProgressDialogClose}
+        ontologyId={selectedOntologyId}
+      />
     </Box>
   );
 };

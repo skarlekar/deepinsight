@@ -417,17 +417,20 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   }
 
   const handleOpenFullscreen = () => {
-    // Create a URL with the graph data as query parameters
+    // Store graph data in sessionStorage instead of URL
     const graphData = {
       nodes: nodes,
       relationships: relationships
     };
     
-    // Encode the data to pass it via URL
-    const encodedData = encodeURIComponent(JSON.stringify(graphData));
-    const fullscreenUrl = `/network-fullscreen?data=${encodedData}`;
+    // Generate truly unique key for this session (timestamp + random)
+    const sessionKey = `network_graph_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const jsonData = JSON.stringify(graphData);
     
-    // Open in new tab
+    sessionStorage.setItem(sessionKey, jsonData);
+    
+    // Open in new tab with session key (use absolute URL to ensure it loads from frontend)
+    const fullscreenUrl = `${window.location.origin}/network-fullscreen?session=${sessionKey}`;
     window.open(fullscreenUrl, '_blank');
   };
 

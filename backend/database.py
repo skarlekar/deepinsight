@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Text, ForeignKey, JSON, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 from sqlalchemy.sql import func
@@ -35,6 +35,7 @@ class User(Base):
     ontologies = relationship("Ontology", back_populates="user")
     extractions = relationship("Extraction", back_populates="user")
     session_tokens = relationship("SessionToken", back_populates="user")
+    settings = relationship("UserSettings", back_populates="user", uselist=False)
 
 class Document(Base):
     __tablename__ = "documents"
@@ -68,6 +69,7 @@ class Ontology(Base):
     version = Column(Integer, nullable=False, default=1)
     status = Column(String(20), nullable=False, default="draft")
     triples = Column(JSON, nullable=False, default=list)
+    ontology_metadata = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.utcnow())
     updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
     
@@ -108,6 +110,38 @@ class SessionToken(Base):
     
     # Relationships
     user = relationship("User", back_populates="session_tokens")
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    
+    # Processing preferences
+    default_chunk_size = Column(Integer, nullable=False, default=1000)
+    default_overlap_percentage = Column(Integer, nullable=False, default=10)
+    
+    # Notification preferences
+    email_notifications = Column(Boolean, nullable=False, default=True)
+    extraction_complete = Column(Boolean, nullable=False, default=True)
+    ontology_created = Column(Boolean, nullable=False, default=True)
+    system_updates = Column(Boolean, nullable=False, default=False)
+    
+    # Appearance preferences
+    theme = Column(String(20), nullable=False, default="light")
+    language = Column(String(10), nullable=False, default="en")
+    
+    # API configuration
+    anthropic_api_key = Column(String(255), nullable=True)
+    max_retries = Column(Integer, nullable=False, default=3)
+    timeout_seconds = Column(Integer, nullable=False, default=30)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=lambda: datetime.utcnow())
+    updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow())
+    
+    # Relationships
+    user = relationship("User", back_populates="settings")
 
 # Database dependency
 def get_db():

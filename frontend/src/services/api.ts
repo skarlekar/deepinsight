@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import {
   AuthResponse, LoginRequest, RegisterRequest, User,
+  UserSettings, UserSettingsUpdate,
   Document, DocumentListResponse,
   Ontology, OntologyDetail,
   Extraction, ExtractionDetail, ExtractionResult,
@@ -243,6 +244,11 @@ class ApiService {
     return response.data;
   }
 
+  async getOntologyProgress(id: string): Promise<any> {
+    const response = await this.api.get(`/ontologies/${id}/progress`);
+    return response.data;
+  }
+
   async downloadExtractionResults(id: string): Promise<Blob> {
     const response = await this.api.get(`/extractions/${id}/result`, {
       responseType: 'blob',
@@ -285,6 +291,21 @@ class ApiService {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+  }
+
+  // Settings endpoints
+  async getUserSettings(): Promise<UserSettings> {
+    const response = await this.api.get<UserSettings>('/settings');
+    return response.data;
+  }
+
+  async updateUserSettings(settings: UserSettingsUpdate): Promise<UserSettings> {
+    const response = await this.api.put<UserSettings>('/settings', settings);
+    return response.data;
+  }
+
+  async resetUserSettings(): Promise<void> {
+    await this.api.delete('/settings');
   }
 
   // Health check

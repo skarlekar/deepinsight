@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 
-from database import get_db, User, Document, Ontology, Extraction
+from database import get_db, User, Document, Ontology, Extraction, UserSettings
 from models.extractions import (
     ExtractionRequest, ExtractionResponse, ExtractionDetailResponse,
     ExtractionStatusResponse, ExtractionResult, ExtractionNode, ExtractionRelationship
@@ -47,6 +47,26 @@ async def create_extraction(
             detail="Ontology not found or not active"
         )
     
+    # Get user settings for chunk parameters
+    user_settings = db.query(UserSettings).filter(UserSettings.user_id == current_user.id).first()
+    
+    # Use user settings if available, otherwise use request parameters or defaults
+    chunk_size = extraction_data.chunk_size
+    overlap_percentage = extraction_data.overlap_percentage
+    
+    if user_settings:
+        # If user has settings and request doesn't specify parameters, use user settings
+        if chunk_size is None:
+            chunk_size = user_settings.default_chunk_size
+        if overlap_percentage is None:
+            overlap_percentage = user_settings.default_overlap_percentage
+    
+    # Apply defaults if still None
+    if chunk_size is None:
+        chunk_size = 1000
+    if overlap_percentage is None:
+        overlap_percentage = 10
+    
     # Create extraction record
     extraction = Extraction(
         user_id=current_user.id,
@@ -56,8 +76,8 @@ async def create_extraction(
         nodes=[],
         relationships=[],
         extraction_metadata={
-            "chunk_size": extraction_data.chunk_size,
-            "overlap_percentage": extraction_data.overlap_percentage
+            "chunk_size": chunk_size,
+            "overlap_percentage": overlap_percentage
         }
     )
     
@@ -71,8 +91,8 @@ async def create_extraction(
         extraction.id,
         document.content_text,
         ontology.triples,
-        extraction_data.chunk_size,
-        extraction_data.overlap_percentage,
+        chunk_size,
+        overlap_percentage,
         current_user.id
     )
     
@@ -128,10 +148,7 @@ def process_data_extraction(
         metadata["total_chunks"] = len(chunks)
         metadata["chunk_progress"] = [{"status": "pending", "nodes_count": 0, "relationships_count": 0} for _ in range(len(chunks))]
         extraction.extraction_metadata = metadata
-        print(f"[EXTRACTION] DEBUG: chunk_progress initialized with {len(chunks)} chunks")
-        print(f"[EXTRACTION] DEBUG: metadata keys: {list(extraction.extraction_metadata.keys())}")
         db.commit()
-        print(f"[EXTRACTION] DEBUG: After commit - metadata keys: {list(extraction.extraction_metadata.keys())}")
         
         # Initialize enhanced extraction processor
         from utils.enhanced_extraction import EnhancedExtractionProcessor
@@ -142,11 +159,6 @@ def process_data_extraction(
         # Process each chunk
         for i, chunk in enumerate(chunks):
             try:
-                print(f"[EXTRACTION] DEBUG: Processing chunk {i+1}, metadata keys: {list(extraction.extraction_metadata.keys())}")
-                print(f"[EXTRACTION] DEBUG: chunk_progress exists: {'chunk_progress' in extraction.extraction_metadata}")
-                if "chunk_progress" in extraction.extraction_metadata:
-                    print(f"[EXTRACTION] DEBUG: chunk_progress length: {len(extraction.extraction_metadata['chunk_progress'])}")
-                
                 # Update current chunk being processed - must reassign for JSON fields
                 metadata = extraction.extraction_metadata.copy()
                 metadata["current_chunk"] = i + 1

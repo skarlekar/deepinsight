@@ -12,6 +12,7 @@ from documents.routes import router as documents_router
 from ontologies.routes import router as ontologies_router
 from extractions.routes import router as extractions_router
 from exports.routes import router as exports_router
+from settings.routes import router as settings_router
 
 settings = get_settings()
 
@@ -57,6 +58,7 @@ app.include_router(documents_router, prefix="/documents", tags=["Documents"])
 app.include_router(ontologies_router, prefix="/ontologies", tags=["Ontologies"])
 app.include_router(extractions_router, prefix="/extractions", tags=["Extractions"])
 app.include_router(exports_router, prefix="/exports", tags=["Exports"])
+app.include_router(settings_router, prefix="/settings", tags=["Settings"])
 
 # Test endpoints for debugging
 @app.get("/test/ontology-retrieval")
