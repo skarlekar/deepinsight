@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     
     # Database settings  
     # Use Railway's DATABASE_URL environment variable if available, fallback to SQLite
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+    database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{os.path.dirname(os.path.dirname(__file__))}/backend/data/deepinsight.db")
     database_echo: bool = False
     
     # Security settings

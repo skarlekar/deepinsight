@@ -10,7 +10,8 @@ def ensure_directories():
     directories = [
         "/tmp/documents",
         "/tmp/exports", 
-        "logs"
+        "logs",
+        "backend/data"
     ]
     
     for directory in directories:
