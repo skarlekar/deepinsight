@@ -10,10 +10,14 @@ from config import get_settings
 settings = get_settings()
 
 # Database setup
+connect_args = {}
+if "sqlite" in settings.database_url:
+    connect_args = {"check_same_thread": False}
+
 engine = create_engine(
     settings.database_url,
     echo=settings.database_echo,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.database_url else {}
+    connect_args=connect_args
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -153,4 +157,18 @@ def get_db():
 
 # Initialize database
 async def init_database():
-    Base.metadata.create_all(bind=engine)
+    import os
+    try:
+        # Ensure database directory exists
+        db_path = settings.database_url.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"Created database directory: {db_dir}")
+        
+        # Create all tables
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created successfully")
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+        raise

@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Database settings  
-    database_url: str = "sqlite:///:memory:"
+    # Use Railway's DATABASE_URL environment variable if available, fallback to SQLite
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///:memory:")
     database_echo: bool = False
     
     # Security settings
