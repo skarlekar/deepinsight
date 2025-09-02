@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Database settings  
-    database_url: str = "sqlite:////tmp/deepinsight.db"
+    database_url: str = "sqlite:///:memory:"
     database_echo: bool = False
     
     # Security settings
