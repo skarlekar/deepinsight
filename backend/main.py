@@ -47,11 +47,33 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_origins=[
+        "http://localhost:3000",  # React dev server
+        "https://web-production-54b8a.up.railway.app",  # Railway deployment
+        "https://*.up.railway.app"  # All Railway subdomains
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "DeepInsight API",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "auth": "/auth",
+            "documents": "/documents", 
+            "ontologies": "/ontologies",
+            "extractions": "/extractions",
+            "exports": "/exports",
+            "settings": "/settings"
+        }
+    }
 
 # Health check endpoint
 @app.get("/health")

@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     # Application settings
     debug: bool = False
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = int(os.getenv("PORT", 8000))  # Use Railway's PORT env var or default to 8000
     
     # Database settings  
     # Use Railway's DATABASE_URL environment variable if available, fallback to SQLite
