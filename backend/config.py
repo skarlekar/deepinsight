@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Database settings
-    database_url: str = "sqlite:///./data/deepinsight.db"
+    database_url: str = "sqlite:////tmp/deepinsight.db"
     database_echo: bool = False
     
     # Security settings
@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     
     # File upload settings
     max_file_size: int = 100 * 1024 * 1024  # 100MB
-    upload_directory: str = "./data/documents"
-    export_directory: str = "./data/exports"
+    upload_directory: str = "/tmp/documents"
+    export_directory: str = "/tmp/exports"
     allowed_mime_types: list = [
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

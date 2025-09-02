@@ -2,7 +2,7 @@
 nixPkgs = ["python311"]
 
 [phases.build]
-cmds = ["pip install -r backend/requirements.txt"]
+cmds = ["pip install -r backend/requirements.txt", "mkdir -p /tmp/documents /tmp/exports backend/logs"]
 
 [start]
 cmd = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
