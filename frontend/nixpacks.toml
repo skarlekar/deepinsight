@@ -1,11 +1,15 @@
 [phases.setup]
 nixPkgs = ["nodejs-18_x"]
+nixOverlays = ["https://github.com/railwayapp/nix-npm-overlay/archive/main.tar.gz"]
 
 [phases.install]
-cmds = ["npm ci"]
+dependsOn = ["setup"]
+cmds = ["npm install"]
 
 [phases.build]
+dependsOn = ["install"]  
 cmds = ["npm run build"]
 
 [start]
-cmd = "npx serve -s build -p $PORT"
+dependsOn = ["build"]
+cmd = "npx --yes serve -s build -l $PORT"
