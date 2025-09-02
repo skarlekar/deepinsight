@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "cd frontend && npm run build && npx serve -s build -l $PORT"
+restartPolicyType = "always"
+
+[nixpacks]
+buildPath = "frontend"

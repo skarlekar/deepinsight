@@ -49,7 +49,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # React dev server
-        "https://web-production-54b8a.up.railway.app",  # Railway deployment
+        "https://web-production-54b8a.up.railway.app",  # Railway backend
+        "https://deepinsight-frontend-production.up.railway.app",  # Railway frontend
         "https://*.up.railway.app"  # All Railway subdomains
     ],
     allow_credentials=True,
