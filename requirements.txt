@@ -1,0 +1,2 @@
+# Root requirements for Heroku deployment
+-r backend/requirements.txt
