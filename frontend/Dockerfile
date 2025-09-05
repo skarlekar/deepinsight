@@ -9,8 +9,8 @@ RUN npm run build
 # Production stage with Caddy
 FROM caddy:alpine
 COPY Caddyfile /etc/caddy/Caddyfile
-COPY start.sh /app/start.sh
+COPY start.sh /start.sh
 COPY --from=build /app/build /app/build
-RUN chmod +x /app/start.sh
+RUN chmod +x /start.sh
 EXPOSE 3000
-CMD ["sh", "/app/start.sh"]
+CMD ["sh", "/start.sh"]
