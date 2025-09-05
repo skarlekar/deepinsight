@@ -12,4 +12,4 @@ cmds = ["npm run build"]
 
 [start]
 dependsOn = ["build"]
-cmd = "npx --yes serve -s build -l $PORT"
+cmd = "npm run serve"
