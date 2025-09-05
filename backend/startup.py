@@ -11,7 +11,7 @@ def ensure_directories():
         "/tmp/documents",
         "/tmp/exports", 
         "logs",
-        "backend/data"
+        "data"
     ]
     
     for directory in directories:
